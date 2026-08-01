@@ -1,0 +1,49 @@
+---
+description: after green tests — launch parallel critic subagents, aggregate blockers, bounded auto-fix
+alwaysApply: false
+---
+# Multi-critic protocol
+
+Invoke only after implementation tests are **green** (see `feature-workflow`). Parent agent orchestrates; critics review; parent applies blocker fixes.
+
+## Launch (parallel)
+
+In one turn, launch these custom subagents (Task / subagent invocations) **in parallel**:
+
+- `functional-verifier`
+- `security-auditor`
+- `qa-edgecase-verifier`
+- `architecture-linter`
+- `test-coverage-auditor`
+
+## Context to pass each critic
+
+Include all of:
+
+1. Original user task
+2. **Approved** requirements, labeled **User-specified** vs **accepted Inferred** (omit rejected inferences)
+3. `git diff` vs branch base and/or changed file paths
+4. Pointers to relevant project rules under `.cursor/rules/` (especially `testing.mdc`, stack architecture, `code-craft`)
+
+## Aggregate and fix
+
+1. Collect each critic’s report.
+2. Auto-fix only findings marked `[BLOCKER - …]`. Treat `[NIT - …]` as advisory unless the user asked to polish.
+3. After fixes, re-run **only** the critics that reported blockers (not the full set), unless the change is broad enough that re-running all is safer.
+4. Cap at **3 fix cycles total** across this multi-critic phase (not per critic).
+5. Always surface the `test-coverage-auditor` summary to the user (advisory unless marked BLOCKER).
+
+## Pass tokens
+
+Expect / require these when a critic is satisfied:
+
+- `FUNCTIONALITY_PASSED`
+- `SECURITY_PASSED`
+- `RELIABILITY_PASSED`
+- `ARCHITECTURE_PASSED`
+
+`test-coverage-auditor` always returns a short coverage-level report; use a pass-style line only if it has no blockers.
+
+## Cap exceeded
+
+If blockers remain after 3 fix cycles: **stop**, report remaining blockers clearly, and request human intervention. Do not claim the change is ready for QA/commit.

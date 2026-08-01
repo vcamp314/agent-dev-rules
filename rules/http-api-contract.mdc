@@ -1,0 +1,15 @@
+---
+description: HTTP API contract (audience + version paths, shared by backend and frontend)
+alwaysApply: false
+---
+Apply when defining or calling HTTP APIs (Go Echo, Python FastAPI, frontend clients). Pair with code-craft and the relevant stack rules. Does not apply to gRPC (version gRPC via protobuf packages, not URL paths).
+
+### Route shape
+
+- Version HTTP routes as `/<audience>/v1/<resource>` (e.g. `/web/v1/...`, `/ai/v1/...`, `/admin/v1/...`).
+- Add audiences when a distinct client surface needs its own API (`web`, `ai`, `admin`, …).
+- Shared operational routes may sit outside audiences when appropriate (e.g. `/api/health`).
+
+### IDs in HTTP payloads
+
+- Prefer UUID v7 (uuid7) for entity IDs in request/response payloads (see also code-craft for persistent IDs generally).

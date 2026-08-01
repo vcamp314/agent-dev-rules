@@ -1,0 +1,52 @@
+---
+description: idiomatic Rust craft shared by HTTP, gRPC, and frontend WASM
+alwaysApply: false
+---
+Apply these Rust craft rules for backend services and frontend WASM engines. Pair with code-craft and the relevant stack rule (backend-rust-http, backend-rust-grpc, or frontend-rust-wasm).
+
+### Language and tooling
+
+- Prefer Rust edition 2021+ (or the edition pinned by the workspace/toolchain).
+- Idiomatic naming: `snake_case` for modules/functions/variables; `UpperCamelCase` for types/traits; `SCREAMING_SNAKE_CASE` for consts.
+- Format with `rustfmt`; lint with `clippy`. Prefer treating clippy warnings as errors in CI when the project sets that up.
+- Document `pub` APIs with rustdoc when exporting crates (libraries, WASM bridge surfaces).
+
+### Ownership and APIs
+
+- Prefer `&str` over `String` (and borrowed forms generally) at API boundaries when ownership is not required.
+- Avoid unnecessary clones; prefer borrowing or moving deliberately.
+- Modules are crate-private by default; use `pub` / `pub(crate)` only when another module needs the item.
+- Prefer small modules and clear functions; if a file grows past ~300 lines, split by responsibility within the same module tree.
+- When defining a local seam, define traits where they are used; keep traits small and single-purpose.
+
+### Types
+
+- Prefer concrete types and enums for domain data. Avoid type erasure (`Box<dyn Any>`, untyped JSON bags) in domain/feature code; parse into structs (`serde`) at boundaries.
+- Prefer `Result` / `Option` over sentinel values or panics for recoverable absence/failure.
+- Prefer strong newtypes when it prevents mixing IDs or units (e.g. user id vs room id) without adding noise everywhere.
+- Keep `unsafe` and transmute-style casts out of normal feature code (see Errors and control flow).
+
+### Errors and control flow
+
+- Prefer `Result` / `Option` and the `?` operator for propagation.
+- Prefer early returns and guard clauses (`ok_or`, `ok_or_else`, early `return Err(...)`); place the happy path last (see also code-craft).
+- Use `thiserror` for library/feature/domain error types. Reserve `anyhow` for binary/`main` edges and ad-hoc tooling — not deep inside domain modules.
+- Avoid `unwrap` / `expect` outside tests and cases that are truly infallible; prefer explicit error mapping.
+- Do not use `unsafe` unless necessary, narrowly scoped, and documented (safety invariants in a comment or rustdoc).
+
+### Async and CPU work
+
+- Prefer Tokio for async backends (HTTP/gRPC).
+- Do not block the async runtime with heavy CPU or blocking I/O; use `spawn_blocking` (or an equivalent offload) when needed on async paths.
+- Pure engine crates used from WASM may stay sync; the JS host owns scheduling. Do not force Tokio into WASM engine crates unless required.
+
+### Testing
+
+- Follow `testing.mdc` for E2E / L1 / L2 / unit level selection (unit-test leaves, not orchestrators).
+- Unit: `cargo test`; prefer colocated `#[cfg(test)]` or sibling `*_test.rs` modules.
+- L2 / cross-module: integration tests under `tests/` at the crate/service root.
+- L2 HTTP (Axum): `tower::ServiceExt` / `oneshot` against the router for endpoint contracts and edge cases.
+- L2 gRPC (Tonic): in-process server tests; assert `Status` and response contracts.
+- L2 workers: invoke job entrypoints with controlled time/fakes for notifiers.
+- Fake at integration boundaries for L2; do not unit-test orchestrators by mocking every collaborator.
+- Prefer UUID v7 for new persistent entity IDs (see code-craft).

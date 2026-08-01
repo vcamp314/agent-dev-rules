@@ -1,2 +1,210 @@
 # agent-dev-rules
-A repo of rules I use in my day to day development.
+
+Modular architecture / craft rules and a Cursor-native DevOps workflow for polyglot apps: frontend (React), Go / Python / Rust HTTP & gRPC backends, and Rust WASM beside React.
+
+Canonical repo: https://github.com/vcamp314/agent-dev-rules
+
+```text
+agent-dev-rules/
+├── README.md
+├── rules/           # architecture + bootstrap + feature workflow
+├── agents/          # multi-critic subagent prompts
+└── commands/        # Cursor slash commands
+```
+
+Files ship as `.mdc` (Markdown + optional YAML frontmatter) or `.md` for agents/commands. The guidance is the body; strip frontmatter or rename when using other tools.
+
+**Do not load every rule.** Include only the [preset](#presets-what-to-include) that matches your project shape.
+
+---
+
+## Cursor workflow (install)
+
+```text
+Plan /new-project  →  fetch preset into .cursor/rules/
+       ↓
+ /feature-start    →  git branch → requirements → TDD → critics → manual QA
+       ↓
+ /commit-push      →  stage thread files only → commit (why) → push
+       ↓
+ You open PR on GitHub
+```
+
+### Where each artifact goes
+
+| Artifact | Cursor location | Source in this repo |
+|----------|-----------------|---------------------|
+| Bootstrap / rule selection | **User Rules** (Customize → Rules) — paste `rules/bootstrap-select-rules.mdc` body | `rules/bootstrap-select-rules.mdc` |
+| Architecture stack rules | Project `.cursor/rules/*.mdc` | `rules/*.mdc` (preset subset) |
+| Feature + multi-critic protocols | Project `.cursor/rules/` | `feature-workflow.mdc`, `multi-critic-protocol.mdc` |
+| Critic subagents | Prefer `~/.cursor/agents/*.md` (all projects) | `agents/*.md` |
+| Slash commands | Prefer `~/.cursor/commands/*.md` | `commands/*.md` |
+
+Do **not** put the full architecture pack in User Rules (context bloat / wrong-stack pollution). Global = bootstrap (+ optional one-liner: prefer `feature-workflow` when implementing features; only commit via `/commit-push` or an explicit ask).
+
+### Install steps (macOS)
+
+1. **User Rules:** copy the body of `rules/bootstrap-select-rules.mdc` into Cursor → Customize → Rules.
+2. **Commands (global):**
+   ```bash
+   mkdir -p ~/.cursor/commands
+   cp commands/*.md ~/.cursor/commands/
+   ```
+3. **Critic agents (global):**
+   ```bash
+   mkdir -p ~/.cursor/agents
+   cp agents/*.md ~/.cursor/agents/
+   ```
+4. **Per project:** run `/new-project` (or follow bootstrap) so the agent fetches the preset `.mdc` files into `.cursor/rules/`, including `feature-workflow.mdc` and `multi-critic-protocol.mdc`.
+
+Alternatively use Cursor **Add Rule → Remote Rule (GitHub)** for this repo once per machine/team; bootstrap still tells the agent which subset to use.
+
+### Slash commands
+
+| Command | Purpose |
+|---------|---------|
+| `/new-project` | Plan preset → fetch rules → scaffold |
+| `/feature-start` | Full feature/fix loop (requirements, TDD, multi-critic, QA handoff) |
+| `/commit-push` | Stage only this thread’s files; why-focused commit; push |
+| `/sync-rules` | Refresh rules/agents/commands from this repo |
+
+### Feature loop (summary)
+
+1. Git prep (untracked local files allowed; stop only on real conflicts).
+2. Requirements in two groups: **User-specified** vs **Inferred** (infer only sensible gaps); confirm before tests.
+3. Red → green TDD per `testing.mdc`.
+4. Verify: max **3** fix-and-rerun cycles, then human intervention.
+5. Multi-critic in parallel; max **3** blocker fix cycles.
+6. Manual QA; commit only with `/commit-push`.
+
+---
+
+## How the architecture modules fit together
+
+```text
+code-craft          ← language-agnostic craft (always useful)
+     │
+     ├── go-core / rust-core     ← language craft (when that language is used)
+     ├── http-api-contract       ← /<audience>/v1 routes + uuid7 in HTTP payloads
+     ├── testing                 ← E2E / L1 / L2 / unit strategy
+     ├── ci-github               ← GitHub Flow + Actions (when tests run)
+     ├── backend-usecases        ← rare cross-domain orchestration (optional)
+     ├── monorepo-architecture   ← repo layout when frontend + backend share a repo
+     │
+     ├── frontend-core (+ frontend-http-api | frontend-protobuf-gen | frontend-rust-wasm | frontend-testing)
+     └── backend-*-architecture-patterns   ← one stack file per service type
+```
+
+| Layer | Files | Role |
+|--------|--------|------|
+| Shared craft | `code-craft`, `go-core`, `rust-core` | How to write code (incl. typing + composition) — not folder trees |
+| Shared contracts | `http-api-contract`, `backend-usecases`, `testing`, `ci-github` | HTTP paths/IDs; usecases; what/how to test; when CI runs |
+| Repo layout | `monorepo-architecture` | Top-level `frontend/`, `backend/`, `protobuf/`, compose, test env |
+| Frontend | `frontend-core`, `frontend-http-api`, `frontend-protobuf-gen`, `frontend-rust-wasm`, `frontend-testing` | React layout + optional API / protobuf / WASM / Playwright+Jest |
+| Backend stacks | `backend-go-http-…`, `backend-go-grpc-…`, `backend-python-fastapi-…`, `backend-rust-http-…`, `backend-rust-grpc-…` | In-service folder layout + framework choices |
+| Workflow | `bootstrap-select-rules`, `feature-workflow`, `multi-critic-protocol` | Greenfield install + feature delivery + critics |
+
+**Backend vocabulary (aligned across Go / Python / Rust HTTP & gRPC):** `features/`, shared `services/` (after reuse), `integrations/`, `database/`, `common/`, optional `usecases/`.
+
+---
+
+## Quick start (architecture only)
+
+1. Pick a [preset](#presets-what-to-include) below.
+2. Copy those files from `rules/` into your project’s agent instructions folder (e.g. `.cursor/rules/`).
+3. Ask the agent to scaffold or change code using those conventions.
+
+Only include modules relevant to the work in progress so context stays small and focused.
+
+---
+
+## Presets (what to include)
+
+### 1. Frontend-only (React app)
+
+| Always | Add when… |
+|--------|-----------|
+| `code-craft`, `frontend-core` | — |
+| + `http-api-contract`, `frontend-http-api` | App calls an HTTP API |
+| + `frontend-protobuf-gen` | App uses generated protobuf/TS clients |
+| + `rust-core`, `frontend-rust-wasm` | App has `crates/` + WASM engines |
+| + `testing`, `frontend-testing` | Writing automated tests |
+| + `ci-github` | Adding GitHub Actions / CI |
+
+Also install for Cursor workflow projects: `feature-workflow`, `multi-critic-protocol`.
+
+### 2. Single HTTP API service (no monorepo)
+
+Pick one stack. Always include `code-craft` + `http-api-contract`. Add `testing` when writing tests; add `ci-github` when adding Actions.
+
+**Go (Echo):** `code-craft`, `go-core`, `http-api-contract`, `backend-go-http-architecture-patterns`
+
+**Python (FastAPI):** `code-craft`, `http-api-contract`, `backend-python-fastapi-architecture-patterns`
+
+**Rust (Axum):** `code-craft`, `rust-core`, `http-api-contract`, `backend-rust-http-architecture-patterns`
+
+Add `backend-usecases` only for rare cross-domain orchestration APIs.
+
+### 3. Single gRPC service (no monorepo)
+
+Do **not** include `http-api-contract`. Add `testing` / `ci-github` as needed.
+
+**Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`
+
+**Rust (Tonic):** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`
+
+### 4. Full monorepo (frontend + backends)
+
+**Always:** `monorepo-architecture`, `code-craft`.
+
+Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rust HTTP / Rust gRPC / usecases / testing / ci) — see the tables in `rules/bootstrap-select-rules.mdc` for the full matrix.
+
+---
+
+## File catalog
+
+| File | Use when |
+|------|----------|
+| `code-craft.mdc` | Any project |
+| `go-core.mdc` | Any Go backend work |
+| `rust-core.mdc` | Any Rust work (HTTP, gRPC, or WASM) |
+| `http-api-contract.mdc` | Defining or calling HTTP APIs |
+| `testing.mdc` | Writing or changing automated tests (strategy) |
+| `ci-github.mdc` | GitHub Flow + Actions |
+| `backend-usecases.mdc` | Rare cross-feature orchestration modules |
+| `monorepo-architecture.mdc` | Repo has both `frontend/` and `backend/` |
+| `frontend-core.mdc` | React / Vite / Tailwind app structure |
+| `frontend-http-api.mdc` | Frontend HTTP client + react-query / toasts |
+| `frontend-protobuf-gen.mdc` | Frontend consumes generated protobuf/TS |
+| `frontend-rust-wasm.mdc` | Frontend `crates/` + wasm-bindgen bridge |
+| `frontend-testing.mdc` | Playwright E2E/L1 + Jest/RTL unit tests |
+| `backend-go-http-architecture-patterns.mdc` | Go Echo HTTP service layout |
+| `backend-go-grpc-architecture-patterns.mdc` | Go gRPC service layout |
+| `backend-python-fastapi-architecture-patterns.mdc` | Python FastAPI service layout |
+| `backend-rust-http-architecture-patterns.mdc` | Rust Axum HTTP service layout |
+| `backend-rust-grpc-architecture-patterns.mdc` | Rust Tonic gRPC service layout |
+| `bootstrap-select-rules.mdc` | Greenfield / preset selection (global User Rule) |
+| `feature-workflow.mdc` | Feature/fix TDD delivery protocol |
+| `multi-critic-protocol.mdc` | Parallel critic orchestration after green tests |
+
+**Agents:** `functional-verifier`, `security-auditor`, `qa-edgecase-verifier`, `architecture-linter`, `test-coverage-auditor`
+
+**Commands:** `new-project`, `feature-start`, `commit-push`, `sync-rules`
+
+---
+
+## Design notes
+
+- **Split by include boundary**, not by dumping conditionals into one mega-file.
+- **Trees live in stack files**; language craft lives in `*-core` / `code-craft`.
+- Placeholders like `aserver` / `bserver` are examples — rename to your domain.
+- Rules prefer reusable conventions (uuid7, `/<audience>/v1/...`, feature modules). They are not product-specific.
+
+## Contributing
+
+Keep new rules:
+
+1. Focused (one include reason per file when practical).
+2. Free of private product/service names.
+3. Consistent with existing `features` / `services` / `integrations` vocabulary where they apply.
+4. Tool-agnostic body text in architecture rules (Cursor install lives in this README + workflow files).

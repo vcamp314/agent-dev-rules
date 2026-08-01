@@ -1,0 +1,68 @@
+---
+description: GitHub Flow + GitHub Actions CI (lint, unit/L2, E2E) — no deployment
+alwaysApply: false
+---
+Apply when scaffolding or changing CI. Pair with `testing.mdc` (what to test) and `frontend-testing` / stack rules (tooling). For monorepo E2E, also pair with `monorepo-architecture` (test environments).
+
+### Branching (GitHub Flow)
+
+- Default branch: `main`.
+- Work on short-lived feature branches; open a PR into `main`; merge when required checks pass.
+- Do not use classic Git Flow (`develop`, long-lived release integration) unless the project later adopts a different release process.
+
+### Workflows to create
+
+```text
+.github/
+└── workflows/
+    ├── ci.yml          # PR + push: lint + unit/L2 (path filters)
+    └── e2e.yml         # E2E (and L1 if present): main / manual / selective PR
+```
+
+Keep workflow YAML stack-agnostic: name jobs by concern; `run` steps call the project’s existing scripts (`npm test`, `go test`, `pytest`, `cargo test`, lint commands, etc.) for packages that exist — the **same commands developers run locally** (see `testing.mdc` Local runs). Do not invent a mega matrix for every language unless those stacks are in the repo.
+
+### Triggers
+
+**`ci.yml` (fast feedback — treat as required for merge)**
+
+| Event | Branches |
+|--------|----------|
+| `pull_request` | → `main` |
+| `push` | → `main` |
+
+Jobs: lint/format for stacks present (eslint/ruff/golangci-lint/clippy/rustfmt as applicable); unit + L2 for **changed** areas (path filters); `buf lint` / breaking when `protobuf/` changes.
+
+**`e2e.yml` (slower — Playwright)**
+
+| Event | When |
+|--------|------|
+| `push` | → `main` (confidence on trunk after merge) |
+| `workflow_dispatch` | Manual re-run / debug |
+| `pull_request` → `main` | **Frontend-only:** run E2E on every PR. **Monorepo:** not on every PR by default — enable when paths touch `frontend/**`, `e2e/**`, or backend packages the E2E stack needs, **or** via label `e2e` |
+
+Optional later (not required scaffolding): `schedule` nightly E2E for monorepos.
+
+### Path filters (monorepo)
+
+- `frontend/**` or `e2e/**` → frontend lint/unit (+ E2E rules above)
+- `backend/<service>/**` → that service’s lint/unit/L2
+- `protobuf/**` → buf (+ regenerate check if the repo generates clients in CI)
+- Root workflow, lockfiles, or shared libs that many packages consume → broader CI
+
+### Jobs and environments
+
+- Unit/L2 live in `ci.yml`; E2E/L1 live in `e2e.yml` (see `testing.mdc`).
+- Monorepo E2E runs against the dedicated test stack and isolated seeded data (`monorepo-architecture` Test environments) — not against day-to-day developer data.
+- CI secrets/vars via GitHub Actions; never commit `.env`. Document required secret **names** in the project README, not values.
+- Fail the job on test or lint failure; configure PR required checks for `ci.yml` (and E2E when it is part of the merge gate for that project).
+
+### Presets
+
+- Frontend-only or monorepo: include `ci-github` when adding or changing GitHub Actions.
+- Always include `testing` (and `frontend-testing` when UI/E2E/L1 is involved).
+
+### Not this file
+
+- Deploy/promote to any host (Vercel, Render, Koyeb, Supabase, etc.) — add project-specific deploy workflows later when a host is chosen.
+- Git Flow / long-lived `develop`.
+- Mobile store release pipelines.

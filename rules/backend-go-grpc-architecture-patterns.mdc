@@ -1,0 +1,210 @@
+---
+description: when code to be added/modified is part of a go grpc microservice
+alwaysApply: false
+---
+  You are an expert in Go, gRPC, and scalable microservice development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
+
+  Pair with: code-craft, go-core, backend-usecases (when cross-domain orchestration applies), and monorepo rules for `protobuf/` + `backend/lib/gen/pb`. HTTP audience URL versioning (http-api-contract) does **not** apply — version gRPC via protobuf packages. Include `testing` when writing automated tests.
+
+### Key Principles
+  - Write concise, technical Go code (see also code-craft and go-core).
+  - Organize by feature under `internal/features/<name>/`, not by technical layer folders.
+  - Within a feature, group by fixed file responsibilities (`endpoints.go`, `service.go`, `errors.go`, `config.go`; add `repository.go` when persistence is needed; add `dto.go` / `entity.go` when types outgrow the main files).
+  - Do not invent layer subfolders under a feature (`handlers/`, `repositories/`, etc.). In particular, do **not** put a `services/` directory inside a feature package — feature logic stays in that package’s `service.go`. Shared domain modules live only at `internal/services/<name>/`.
+  - Package roles (do not conflate these):
+    - `internal/features/<name>/` — primary unit: transport + feature-owned domain logic
+    - `internal/services/<name>/` — shared application/domain services used by 2+ features (no gRPC registration here). Promote only after real reuse; do not put domain workflows in `common/`
+    - `internal/integrations/<name>/` — external systems (NATS, Cognito, etc.)
+    - `internal/database/` — SQL infra when needed
+    - `internal/common/` — dumb helpers only, extracted after real reuse
+    - `internal/usecases/<name>/` — optional; rare cross-domain orchestration RPCs (see backend-usecases)
+  - Feature-only adapters may start inside the feature and move to `integrations/` when they become service-wide.
+  - Single-provider integrations may start with `client.go` + `models.go` only; add `<provider>.go` when a second vendor/impl appears.
+  - Features may be in-memory, messaging-backed, SQL-backed, or mixed — pick the persistence/integration that fits the domain.
+  - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers; do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - Protobufs are the API contract: define services/messages in the monorepo `protobuf/` tree; consume generated Go from the shared gen package (e.g. `backend/lib/gen/pb`). Do not hand-edit generated pb code.
+
+### Go/gRPC
+  - Keep endpoints thin and push use-case logic into feature/shared services.
+  - Prefer UUID v7 for IDs (see code-craft / go-core).
+  - File structure (feature module approach):
+
+```text
+grpcserver/                          # e.g. backend/bserver (or domain name such as chatserver)
+├── cmd/
+│   ├── server/main.go               # gRPC (and optional grpc-web) entrypoint
+│   ├── client/main.go               # Optional but recommended: developer CLI to exercise the service
+│   └── migrator/main.go             # Optional: only if an in-process migrator binary is needed
+├── Dockerfile                       # Production build (prefer multi-stage; distroless optional)
+├── Dockerfile.air                   # Optional: hot-reload local image
+├── sqlc.yaml                        # Optional: only when the service uses SQL
+├── docs/                            # Optional: service docs
+├── testing/                         # Optional: integration / heavier tests
+│   ├── integration_tests/
+│   └── test_utils/
+├── internal/
+│   ├── server/                      # Optional early; recommended as the service grows: bootstrap, interceptors, lifecycle
+│   ├── client/                      # Optional: client library used by cmd/client (and tests)
+│   ├── environment/                 # Config from env (preferred over ad-hoc getEnv in main)
+│   ├── config/                      # Optional: Viper/YAML loaders when multi-env needs them
+│   ├── monitoring/                  # Optional: OTel traces/metrics/error helpers
+│   ├── tools/                       # Optional: migrator helpers
+│   ├── database/                    # Optional: SQL infra (only if DB used)
+│   │   ├── migrations/
+│   │   ├── queries/
+│   │   └── sqlc/                    # sqlc-generated (do not hand-edit)
+│   ├── integrations/                # External-system adapters (only when needed)
+│   │   └── <name>/                  # e.g. network/ (NATS), llm/, cognito/
+│   │       ├── client.go            # Provider-agnostic interface + wiring
+│   │       ├── <provider>.go        # Optional until a second vendor appears
+│   │       ├── models.go            # DTOs / request-response types for this integration
+│   │       └── client_test.go       # Optional
+│   ├── services/                    # Shared app/domain services (only after 2+ features need them)
+│   │   └── <name>/                  # no gRPC service registration here
+│   │       ├── service.go           # Business rules / workflows
+│   │       ├── models.go            # Domain models / types
+│   │       ├── repository.go        # Optional: when this shared service owns persistence
+│   │       └── service_test.go      # Optional
+│   ├── features/<feature>/          # PRIMARY unit of organization
+│   │   ├── endpoints.go             # gRPC service impl (embeds Unimplemented*Server)
+│   │   ├── service.go               # Feature-owned use-case logic; orchestrates repos/integrations/services
+│   │   ├── service_test.go
+│   │   ├── endpoints_test.go        # Optional: unit tests for endpoint mapping
+│   │   ├── errors.go                # Domain / feature-level errors
+│   │   ├── config.go                # Feature-specific configuration types (when needed)
+│   │   ├── repository.go            # Optional: only if persistence is needed
+│   │   ├── dto.go / entity.go       # Optional: split out when types grow
+│   │   ├── injector.go              # Optional: Wire when DI complexity warrants it
+│   │   └── injector_gen.go          # Optional: generated Wire (do not hand-edit)
+│   ├── usecases/                    # Optional: rare cross-domain orchestration (see backend-usecases)
+│   │   └── <name>/
+│   │       ├── endpoints.go         # gRPC service impl for this product action
+│   │       ├── service.go           # Orchestrates features/services/integrations only
+│   │       ├── errors.go
+│   │       ├── dto.go               # Optional
+│   │       └── config.go            # Optional
+│   └── common/                      # Dumb helpers only — after real reuse
+│       └── utils/                   # shared id, enum, pointer, helpers
+└── ...
+
+# Monorepo (repo root / shared libs — not inside each gRPC service):
+protobuf/                            # Shared .proto API contracts
+backend/lib/gen/pb/                  # Generated Go from protobuf/ (do not hand-edit)
+docker-compose.yml                   # Local infra + services
+docker-compose.dev.yml               # Optional: air/hot-reload overrides
+```
+
+  - High-level `internal/` responsibilities:
+    - `server/` (when present): gRPC server construction, interceptors, keepalive, graceful shutdown, registration of feature/usecase servers
+    - `environment/`: env-based config loading
+    - `client/`: programmatic client used by CLI and tests
+    - `database/`: connection setup, migrations, sqlc (only if SQL)
+    - `integrations/`: adapters for external systems the service depends on (e.g. NATS)
+    - `services/`: shared domain/application logic used by multiple features (no transport)
+    - `features/<name>/`: gRPC endpoints, feature-owned services, optional repositories, feature errors/config
+    - `usecases/<name>/`: optional cross-domain orchestration RPCs (see backend-usecases)
+    - `common/`: helpers only — never domain workflows
+    - `monitoring/`, `tools/`, Wire: add when needed, not by default
+  - If any file in a feature gets long (> 300 lines), split by clear responsibility within the same package — still prefer flat files over inventing layer folders.
+  - DI: manual constructors in `cmd/server` or `internal/server` are the default — wire integrations, shared `services/`, feature services, and optional usecases into gRPC servers. Introduce Google Wire when wiring becomes painful.
+  - When SQL is needed: prefer sqlc (see go-core); put migrations/queries/sqlc under `internal/database/`; do not hand-edit sqlc output.
+  - Soft-delete and RLS: only when the domain/tenancy model requires them.
+  - Prefer extracting bootstrap out of `main` into `internal/server` once startup logic grows past simple listen/register/serve.
+
+### Use Cases
+
+  Follow backend-usecases. Paths for this stack: `internal/usecases/<name>/` (file set shown in the tree above).
+
+### Naming Conventions
+  - Follow go-core for package-context type names, `Err` prefix, and conversion-helper placement.
+  - Method names: idiomatic Go is fine (`Chat`, `GetRoom`, `ListMessages`).
+  - gRPC endpoint structs: typically `Server` embedding `Unimplemented<Service>Server`.
+
+### Error Handling and Validation
+  - Follow go-core for early returns, `Err` vars, `errors.Is` / `errors.As`, and `%w` wrapping.
+  - Distinguish context cancellation / deadline from unexpected failures (especially on streams).
+  - Map domain errors to gRPC status codes in the endpoint layer (not deep inside integrations):
+
+```go
+return status.Errorf(codes.NotFound, "room not found")
+// or: return status.Error(codes.InvalidArgument, "user id required")
+```
+
+  - Common gRPC codes: `OK`, `InvalidArgument`, `NotFound`, `AlreadyExists`, `PermissionDenied`, `Unauthenticated`, `FailedPrecondition`, `Aborted`, `ResourceExhausted`, `Unavailable`, `Canceled`, `DeadlineExceeded`, `Internal`.
+  - Prefer shared interceptors for panic recovery, request logging, and auth once more than one RPC needs them.
+  - Unexpected errors via monitoring helpers when those exist; otherwise log and return `codes.Internal` (avoid leaking internals to clients).
+
+### Dependencies
+
+  Staples (expected for most gRPC services):
+  - Language / lint / tests / IDs / SQL driver+sqlc preferences: see go-core
+  - gRPC: `google.golang.org/grpc`
+  - Protobuf runtime: `google.golang.org/protobuf`
+  - Generated API: shared module under `backend/lib/gen/pb` (from monorepo `protobuf/`)
+  - Config: env via `internal/environment` by default
+
+  When the service uses SQL (optional per service, but staples once SQL exists):
+  - Migrations: golang-migrate
+
+  Optional / service-specific (add only when needed):
+  - Messaging: NATS (`nats.go`; embedded `nats-server` for local/dev or tests) — used by chat-style fan-out, not required for every gRPC service
+  - Browser clients: `improbable-eng/grpc-web` (or successor) when browsers must speak to the service without a separate gateway
+  - Auth: JWT / Cognito / similar interceptors only if the service needs identity
+  - Observability: OpenTelemetry, richer logging (e.g. zerolog)
+  - DI: Google Wire when constructor graphs hurt
+  - Mocks: uber-go/mock when interface mocking helps
+  - Local reload: air
+  - Task runner: Just (only if the service already uses it)
+  - Developer UX: `cmd/client` + `internal/client` CLI against the live service (strongly recommended for streaming services)
+
+### gRPC-Specific Guidelines
+  - Keep endpoints as thin adapters: validate/authz → call service → map errors to `status` codes.
+  - Always embed `Unimplemented<Service>Server` in the server struct for forward compatibility.
+  - Register services explicitly (`pb.RegisterXServer(grpcServer, impl)`).
+  - Prefer `grpc.NewClient` (or current non-deprecated dial APIs) over legacy `grpc.Dial` in new code.
+  - Use transport credentials appropriately: insecure only for local/dev; TLS (or mesh-provided TLS) outside that.
+  - For long-lived streams, configure server/client keepalive deliberately (idle timeouts, ping interval, max connection age for rolling deploys).
+  - Handle stream lifecycle explicitly: `io.EOF` (client done), `codes.Canceled` / context done, and unexpected recv/send errors.
+  - Prefer context propagation end-to-end; cancel in-flight work when the RPC context ends.
+  - Interceptors (unary/stream): logging, recovery, auth, timeouts — shared in `internal/server` when used.
+  - Optional: gRPC Health Checking Protocol for orchestrators/load balancers.
+  - grpc-web: only when browser clients need direct access; keep origin allowlists tight outside local dev.
+  - Proto changes: edit `protobuf/`, regenerate into `backend/lib/gen/pb`, then update service code. Never hand-edit `*.pb.go` / `*_grpc.pb.go`.
+  - Keep proto packages/versioning clear (directory + go_package) so multiple services can evolve contracts safely.
+  - Local secrets in `.env` / env vars; never commit credentials.
+
+### Protobuf and Codegen
+  - Source of truth: monorepo `protobuf/**/*.proto`.
+  - Generated Go lives in a shared module (e.g. `backend/lib/gen/pb`) consumed via Go module replace/version — not copied into each service.
+  - Service READMEs should point at the protobuf regenerate workflow.
+  - Prefer small, focused proto packages (e.g. `chat/endpoint/room`, `network/chat`) over one mega-proto.
+
+### Database and Migrations
+  - Only when the gRPC service needs SQL persistence.
+  - Same conventions as HTTP Go services: `internal/database/{migrations,queries,sqlc}`, golang-migrate, sqlc generate after schema changes.
+  - Migration naming: `create_<domain>_table`, `alter_<table>_<description>`.
+  - Running migrate via compose image or CLI is fine; `cmd/migrator` is optional.
+
+### DI, Mocks, and Testing
+  - Default wiring: construct integrations → services → endpoint servers in `cmd/server` or `internal/server` with plain constructors.
+  - Add Wire only when complexity warrants it; do not hand-edit generated Wire output.
+  - Follow `testing.mdc` for what to test at each level. Tooling: see go-core (testify; bufconn / in-process gRPC for L2).
+  - Unit-test single-job helpers (`*_test.go` colocated); cover orchestrators and RPC contracts via L2 (`testing/integration_tests/` + `test_utils/` when useful) or E2E.
+  - Prefer injectable integrations so L2 can swap fakes/embedded servers. Avoid brittle `time.Sleep`-based synchronization when wait/signal patterns are practical.
+  - `cmd/client` is for manual exploration; automated coverage belongs in tests.
+
+### Performance and Observability
+  - Minimize blocking I/O; keep DB, messaging, and stream IO context-aware and cancellable.
+  - Tune message buffer sizes and subscription handlers for streaming/fan-out workloads when applicable.
+  - Add OpenTelemetry / metrics when operational needs justify them.
+  - Prefer multi-stage Docker builds; distroless/nonroot is a good production target when hardening images.
+  - Expose ports clearly (native gRPC vs grpc-web) and document them in the service README.
+
+  Key Conventions
+  1. Organize by feature; keep layered responsibilities in flat files (`endpoints`, `service`, optional `repository`, `errors`, `config`).
+  2. Use manual DI by default; Wire only when complexity warrants it.
+  3. Put SQL under `internal/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain RPCs under `usecases/`.
+  4. Never hand-edit generated protobuf or sqlc output.
+  5. Map domain errors to gRPC `status`/`codes` at the endpoint boundary; follow go-core for `%w` / `errors.Is` internally.
+  6. Embed `Unimplemented*Server`; handle stream/context cancellation explicitly.
+  7. Treat NATS/grpc-web/auth/OTel/Wire/Just/SQL and `usecases/` as opt-in — required only when the service’s role needs them.

@@ -1,0 +1,226 @@
+---
+description: when code to be added/modified is part of a rust grpc microservice (Tonic)
+alwaysApply: false
+---
+  You are an expert in Rust, gRPC (Tonic), and scalable microservice development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
+
+  Pair with: code-craft, rust-core, backend-usecases (when cross-domain orchestration applies), and monorepo rules for `protobuf/` + `backend/lib/gen/pb`. HTTP audience URL versioning (http-api-contract) does **not** apply — version gRPC via protobuf packages. Include `testing` when writing automated tests.
+
+### Key Principles
+  - Write concise, technical Rust code (see also code-craft and rust-core).
+  - Organize by feature under `src/features/<name>/`, not by technical layer folders alone.
+  - Within a feature, group by fixed file responsibilities (`endpoints.rs`, `service.rs`, `error.rs`, `config.rs`; add `repository.rs` when persistence is needed; add `dto.rs` / `entity.rs` when types outgrow the main files).
+  - Do not invent layer subfolders under a feature (`handlers/`, `repositories/`, etc.). In particular, do **not** put a `services/` directory inside a feature module — feature logic stays in that feature’s `service.rs`. Shared domain modules live only at `src/services/<name>/`.
+  - Package roles (do not conflate these):
+    - `src/features/<name>/` — primary unit: transport + feature-owned domain logic
+    - `src/services/<name>/` — shared application/domain services used by 2+ features (no gRPC registration here). Promote only after real reuse; do not put domain workflows in `common/`
+    - `src/integrations/<name>/` — external systems (NATS, Cognito, etc.)
+    - `src/database/` — SQL infra when needed
+    - `src/common/` — dumb helpers only, extracted after real reuse
+    - `src/usecases/<name>/` — optional; rare cross-domain orchestration RPCs (see backend-usecases)
+  - Modules are crate-private by default; `pub` only when another module needs the item.
+  - Feature-only adapters may start inside the feature and move to `integrations/` when they become service-wide.
+  - Single-provider integrations may start with `client.rs` + `models.rs` only; add `<provider>.rs` when a second vendor/impl appears.
+  - Define traits where they are used, not where they are implemented. Keep traits small and single-responsibility.
+  - Always update aggregates through their aggregate root; do not mutate child entities from outside the root.
+  - Features may be in-memory, messaging-backed, SQL-backed, or mixed — pick the persistence/integration that fits the domain.
+  - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers; do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - Protobufs are the API contract: define services/messages in the monorepo `protobuf/` tree; consume generated Rust from the shared gen package (e.g. `backend/lib/gen/pb`). Do not hand-edit generated pb code.
+
+### Rust/gRPC (Tonic)
+  - Keep endpoints thin and push use-case logic into feature/shared services.
+  - Use `rustfmt` and `clippy` when those tools are set up for the service.
+  - Prefer sqlx for PostgreSQL when SQL is needed.
+  - Prefer UUID v7 for IDs (see code-craft).
+  - Time: `chrono` or `time` — pick one per service and stay consistent.
+  - File structure (feature module approach):
+
+```text
+grpcserver/                          # e.g. backend/bserver (or domain name such as chatserver)
+├── Cargo.toml
+├── Dockerfile                       # Production build (prefer multi-stage)
+├── .env.example                     # Optional but recommended
+├── migrations/                      # Optional: sqlx migrate when SQL used — or under src/database/migrations/
+├── docs/                            # Optional: service docs
+├── tests/                           # Optional: integration / heavier tests
+├── src/
+│   ├── main.rs                      # Thin: load env → server::run
+│   ├── bin/
+│   │   └── client.rs                # Optional but recommended: developer CLI to exercise the service
+│   ├── lib.rs                       # Optional: re-exports when useful for tests / client
+│   ├── server/
+│   │   ├── mod.rs
+│   │   ├── app.rs                   # Tonic Server build, interceptors, lifecycle, service registration
+│   │   └── state.rs                 # Optional shared deps
+│   ├── client/                      # Optional: client library used by bin/client (and tests)
+│   │   └── mod.rs
+│   ├── environment/
+│   │   └── mod.rs                   # Config from env (preferred over ad-hoc env in main)
+│   ├── config/                      # Optional: richer multi-env loaders
+│   │   └── mod.rs
+│   ├── monitoring/                  # Optional: OTel / tracing helpers
+│   │   └── mod.rs
+│   ├── database/                    # Optional: SQL infra (only if DB used)
+│   │   ├── mod.rs                   # Pool setup
+│   │   ├── migrations/              # If not at service root
+│   │   └── queries/                 # sqlx query modules / query files
+│   ├── integrations/                # External-system adapters (only when needed)
+│   │   └── <name>/                  # e.g. network/ (NATS), llm/, cognito/
+│   │       ├── mod.rs
+│   │       ├── client.rs            # Provider-agnostic trait + wiring
+│   │       ├── <provider>.rs        # Optional until a second vendor appears
+│   │       ├── models.rs            # DTOs / request-response types
+│   │       └── client_test.rs       # Optional (or #[cfg(test)] in client.rs)
+│   ├── services/                    # Shared app/domain (only after 2+ features need them)
+│   │   └── <name>/                  # no tonic service registration here
+│   │       ├── mod.rs
+│   │       ├── service.rs           # Business rules / workflows
+│   │       ├── models.rs            # Domain models / types
+│   │       ├── repository.rs        # Optional: when this shared service owns persistence
+│   │       └── service_test.rs      # Optional
+│   ├── features/
+│   │   └── <feature>/               # PRIMARY unit of organization
+│   │       ├── mod.rs
+│   │       ├── endpoints.rs         # tonic service impl
+│   │       ├── service.rs           # Feature-owned logic; orchestrates repos/integrations/services
+│   │       ├── service_test.rs      # Optional
+│   │       ├── endpoints_test.rs    # Optional: unit tests for endpoint mapping
+│   │       ├── repository.rs        # Optional: only if persistence is needed
+│   │       ├── error.rs             # Domain / feature-level errors (thiserror)
+│   │       ├── config.rs            # Feature-specific configuration (when needed)
+│   │       ├── dto.rs               # Optional: split out when types grow
+│   │       └── entity.rs            # Optional: split out when types grow
+│   ├── usecases/                    # Optional: rare cross-domain orchestration (see backend-usecases)
+│   │   └── <name>/
+│   │       ├── mod.rs
+│   │       ├── endpoints.rs         # tonic service impl for this product action
+│   │       ├── service.rs           # Orchestrates features/services/integrations only
+│   │       ├── error.rs
+│   │       ├── dto.rs               # Optional
+│   │       └── config.rs            # Optional
+│   └── common/                      # Dumb helpers only — after real reuse
+│       ├── mod.rs
+│       └── utils/                   # shared id, enum, helpers
+│           └── mod.rs
+└── ...
+
+# Monorepo (repo root / shared libs — not inside each gRPC service):
+protobuf/                            # Shared .proto API contracts
+backend/lib/gen/pb/                  # Generated Rust from protobuf/ (do not hand-edit)
+docker-compose.yml                   # Local infra + services
+docker-compose.dev.yml               # Optional
+```
+
+  - High-level `src/` responsibilities:
+    - `server/`: gRPC server construction, interceptors, keepalive, graceful shutdown, registration of feature/usecase servers
+    - `environment/`: env-based config loading
+    - `client/`: programmatic client used by CLI and tests
+    - `database/`: pool setup, migrations, sqlx (only if SQL)
+    - `integrations/`: adapters for external systems the service depends on (e.g. NATS)
+    - `services/`: shared domain/application logic used by multiple features (no transport)
+    - `features/<name>/`: gRPC endpoints, feature-owned services, optional repositories, feature errors/config
+    - `usecases/<name>/`: optional cross-domain orchestration RPCs (see backend-usecases)
+    - `common/`: helpers only — never domain workflows
+    - `monitoring/`, richer `config/`: add when needed, not by default
+  - If any file in a feature gets long (> 300 lines), split by clear responsibility within the same module — still prefer flat files over inventing layer folders.
+  - DI: manual construction in `main` or `server` is the default — wire integrations, shared `services/`, feature services, and optional usecases into tonic services via `Arc` / owned state. No DI framework by default.
+  - When SQL is needed: prefer sqlx; put pool/migrations/queries under `src/database/` (or migrations at service root).
+  - Soft-delete and RLS: only when the domain/tenancy model requires them.
+  - Prefer extracting bootstrap out of `main` into `server` once startup logic grows past simple listen/register/serve.
+
+### Use Cases
+
+  Follow backend-usecases. Paths for this stack: `src/usecases/<name>/` (file set shown in the tree above).
+
+### Naming Conventions
+  - Service / repository type names: rely on module context (`Service` in module `room`, not `RoomService` — the protobuf type may still be `RoomService`).
+  - Method names: idiomatic Rust matching the proto RPC where practical.
+  - Defined errors: `thiserror` enums in `error.rs`.
+  - Conversion helpers: keep them close to the types they convert. Prefer clarity over rigid naming rituals.
+
+### Error Handling and Validation
+  - Prioritize error handling and edge cases (see rust-core / code-craft):
+    - Handle errors and edge cases at the beginning of functions.
+    - Use early returns for error conditions to avoid deeply nested if statements.
+    - Place the happy path last in the function for improved readability.
+    - Avoid unnecessary else; use the if-return pattern instead.
+    - Use guard clauses for preconditions and invalid states early.
+    - Distinguish context cancellation / deadline from unexpected failures (especially on streams).
+  - Domain errors via `thiserror`; map to `tonic::Status` at the endpoint layer (not deep inside integrations).
+  - Common gRPC codes: `Ok`, `InvalidArgument`, `NotFound`, `AlreadyExists`, `PermissionDenied`, `Unauthenticated`, `FailedPrecondition`, `Aborted`, `ResourceExhausted`, `Unavailable`, `Cancelled`, `DeadlineExceeded`, `Internal`.
+  - Prefer shared interceptors for panic recovery, request logging, and auth once more than one RPC needs them.
+  - Unexpected errors: log and return `Internal` (avoid leaking internals to clients).
+
+### Dependencies
+
+  Staples (expected for most gRPC services):
+  - Language: Rust (pin edition / toolchain)
+  - gRPC: tonic
+  - Protobuf: prost (+ tonic-build / buf codegen into shared gen)
+  - Generated API: shared package under `backend/lib/gen/pb` (from monorepo `protobuf/`)
+  - Async: Tokio
+  - Errors: thiserror (domain); anyhow at binary edges
+  - Logging: tracing + tracing-subscriber at the binary
+  - Lint/format: rustfmt + clippy when set up
+  - Config: env via `src/environment` by default
+
+  When the service uses SQL (optional per service, but staples once SQL exists):
+  - sqlx (prefer PostgreSQL + runtime-tokio)
+  - Migrations: sqlx migrate
+  - IDs: UUID v7 (see code-craft)
+
+  Optional / service-specific (add only when needed):
+  - Messaging: NATS (or similar) — used by chat-style fan-out, not required for every gRPC service
+  - Browser clients: grpc-web / gateway only when browsers must speak to the service without a separate HTTP API
+  - Auth: JWT / Cognito / similar interceptors only if the service needs identity
+  - Observability: OpenTelemetry
+  - Developer UX: `src/bin/client.rs` + `src/client/` against the live service (strongly recommended for streaming services)
+
+### gRPC-Specific Guidelines
+  - Keep endpoints as thin adapters: validate/authz → call service → map errors to `tonic::Status`.
+  - Implement the generated tonic service trait in `endpoints.rs`.
+  - Register services explicitly on the tonic `Server` builder in `server/app.rs`.
+  - Use transport credentials appropriately: insecure only for local/dev; TLS (or mesh-provided TLS) outside that.
+  - For long-lived streams, configure server/client keepalive deliberately (idle timeouts, ping interval, max connection age for rolling deploys).
+  - Handle stream lifecycle explicitly: client disconnect, `Cancelled` / context done, and unexpected recv/send errors.
+  - Prefer context propagation end-to-end; cancel in-flight work when the RPC context ends.
+  - Interceptors (unary/stream): logging, recovery, auth, timeouts — shared in `server` when used.
+  - Optional: gRPC Health Checking Protocol for orchestrators/load balancers.
+  - Proto changes: edit `protobuf/`, regenerate into `backend/lib/gen/pb`, then update service code. Never hand-edit generated Rust pb files.
+  - Keep proto packages/versioning clear so multiple services can evolve contracts safely.
+  - Local secrets in `.env` / env vars; never commit credentials.
+
+### Protobuf and Codegen
+  - Source of truth: monorepo `protobuf/**/*.proto`.
+  - Generated Rust lives in a shared package (e.g. `backend/lib/gen/pb`) consumed as a path/workspace dependency — not copied into each service.
+  - Service READMEs should point at the protobuf regenerate workflow.
+  - Prefer small, focused proto packages over one mega-proto.
+
+### Database and Migrations
+  - Only when the gRPC service needs SQL persistence.
+  - Same conventions as HTTP Rust services: `src/database/{mod.rs,migrations,queries}`, sqlx migrate, update queries after schema changes.
+  - Migration naming: `create_<domain>_table`, `alter_<table>_<description>`.
+  - Running migrate via compose image or CLI is fine.
+
+### DI, Mocks, and Testing
+  - Default wiring: construct integrations → services → endpoint servers in `main` or `server` with plain constructors.
+  - Follow `testing.mdc` for what to test at each level. Tooling: see rust-core (`cargo test`; in-process Tonic for L2).
+  - Unit-test single-job helpers; cover orchestrators and RPC contracts via L2 (`tests/`) or E2E.
+  - Prefer injectable integrations so L2 can swap fakes.
+  - `src/bin/client.rs` is for manual exploration; automated coverage belongs in tests.
+
+### Performance and Observability
+  - Minimize blocking I/O; keep DB, messaging, and stream IO cancellable.
+  - Tune message buffer sizes and subscription handlers for streaming/fan-out workloads when applicable.
+  - Add OpenTelemetry / metrics when operational needs justify them.
+  - Prefer multi-stage Docker builds; distroless/nonroot is a good production target when hardening images.
+  - Expose ports clearly (native gRPC vs any gateway) and document them in the service README.
+
+  Key Conventions
+  1. Organize by feature; keep layered responsibilities in flat files (`endpoints`, `service`, optional `repository`, `error`, `config`).
+  2. Use manual DI by default.
+  3. Put SQL under `src/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain RPCs under `usecases/`.
+  4. Never hand-edit generated protobuf output.
+  5. Map domain errors to `tonic::Status` at the endpoint boundary; use `thiserror` internally.
+  6. Handle stream/context cancellation explicitly.
+  7. Treat NATS/grpc-web/auth/OTel/SQL and `usecases/` as opt-in — required only when the service’s role needs them.

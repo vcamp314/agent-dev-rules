@@ -1,0 +1,58 @@
+---
+description: feature/fix delivery — git prep, requirements (user vs inferred), TDD/BDD, bounded verify, multi-critic, manual QA handoff
+alwaysApply: false
+---
+# Feature / fix development protocol
+
+Apply when implementing a feature or bugfix (especially when the user runs `/feature-start`). Do not skip steps. Do not commit until the user runs `/commit-push` or explicitly asks to commit.
+
+## Ordered steps
+
+### 1. Git prep
+
+1. `git fetch` and integrate latest `main` (fast-forward or rebase/pull as appropriate for the repo).
+2. **Untracked files are allowed and expected** (local scripts, experiments, etc.). Do **not** refuse solely because untracked paths exist. Do **not** add them to `.gitignore` just to quiet git.
+3. Proceed unless git reports a **real conflict**: tracked local modifications that prevent checkout/merge/rebase, or merge/rebase conflicts with remote. On conflict: **stop**, show the conflict, request human intervention.
+4. Create and checkout a branch. Inspect existing names (`git branch -a`); default `feature/<short-kebab>` or `fix/<short-kebab>` matching prior style.
+
+### 2. Requirements
+
+Break the ask into numbered functional requirements (Given/When/Then or bullet behaviors). Present **two clearly labeled groups**:
+
+- **User-specified** — stated or clearly implied by the user’s prompt/acceptance criteria only.
+- **Inferred** — gaps you propose to close. Add inferred items **only when truly sensible** (an obvious missing edge the user likely overlooked that would otherwise leave a broken, unsafe, or unusable feature). Do **not** invent nice-to-haves, speculative scope, or “while we’re here” work.
+- Label every inferred item (e.g. `[Inferred]`). Prefer asking over assuming when unsure.
+
+**Pause for user confirmation** before writing tests so they can drop or edit inferred items.
+
+### 3. Test design (BDD-oriented TDD)
+
+For each **approved** requirement, choose the level using project `testing.mdc` (and `frontend-testing` / stack rules as applicable):
+
+- E2E for main user journeys
+- L1/L2 for contracts / selective third-party mocks / API-level behavior
+- Unit tests for **single-job leaves only** — not multi-step orchestrators
+
+Prefer behavior-focused names/specs over implementation asserts.
+
+### 4. Red
+
+Write the tests; run them locally; confirm they fail for the right reason.
+
+### 5. Green
+
+Implement per project architecture rules (`.cursor/rules/`). Keep compose-from-leaves (`code-craft` Composition).
+
+### 6. Verify (bounded loop)
+
+Re-run relevant tests and fix failures. After the first red→green attempt, allow **at most 3** fix-and-rerun cycles (each “tests fail → edit → re-run” counts as one).
+
+If still failing after 3 cycles: **stop**. Report remaining failures (commands, key output, hypotheses) and **request human intervention**. Do not keep iterating. Do **not** start multi-critic.
+
+### 7. Multi-critic
+
+Only after tests are green. Follow `multi-critic-protocol.mdc`. Pass the original task and **approved** requirements (user-specified + accepted inferred only) so critics do not treat dropped inferences as missing scope.
+
+### 8. Hand off
+
+Summarize for user **manual QA** (what to click/run, which commands). Do **not** commit or push until `/commit-push`.

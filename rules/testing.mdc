@@ -1,0 +1,54 @@
+---
+description: automated testing strategy (E2E, integration L1/L2, unit — what to test and how)
+alwaysApply: false
+---
+Apply when writing or changing automated tests. Pair with stack tooling (`frontend-testing`, go-core / rust-core / backend stack rules) and `monorepo-architecture` when E2E hits in-repo backends. CI wiring for when tests run: `ci-github`. Production code should follow code-craft Composition so unit-testable leaves exist.
+
+### Local runs
+
+- Developers must be able to run the same test levels **locally from the terminal** (not only in CI): unit, L2, and E2E/L1 as applicable.
+- Prefer documented package scripts or standard toolchain commands (e.g. `npm test`, `npx playwright test`, `go test ./...`, `pytest`, `cargo test`) and document them in the project README.
+- CI workflows should invoke those same scripts/commands so local and CI stay aligned.
+- Monorepo E2E locally: bring up the test stack (compose/seed) as documented, then run Playwright — same isolated data rules as CI.
+
+### Principles (all levels)
+
+- Assert **observable behavior and contracts**, never implementation details (DOM tag names, private helpers, call order of internals, “uses X then Y internally”).
+- Prefer fewer, higher-signal tests over exhaustive low-value ones.
+- Prefer a real isolated test environment over mocks when first-party systems can be isolated. Use L1 mocks only for **third parties you cannot isolate** (e.g. email/payments without a usable sandbox API).
+
+### E2E (full system)
+
+- Cover **main user journeys** (highest-value requirements) through the real UI.
+- Tooling: Playwright (see `frontend-testing`).
+- Monorepo: run against **real backends** in a dedicated test environment with **isolated seeded data** (see `monorepo-architecture`) — never against day-to-day developer data.
+- Frontend-only: same Playwright flows; no backend/seed concern.
+- If a main path depends on non-isolatable third parties, cover it with **L1** (or L2 if the UI is the wrong surface), not a fragile full E2E.
+
+### Integration L1 (Playwright + selective mocks)
+
+- Same UI driver as E2E; **mock only** externals that cannot live in the test env.
+- Use for important paths that need the UI but cannot be fully real end-to-end.
+- Prefer L1 for a **subset** of side paths when full E2E for every side path would blow CI time and L2 alone would lose too much confidence.
+
+### Integration L2 (no UI — backend / workers)
+
+- Use when the behavior is not a UI journey (workers, schedulers, pure API contracts) or when many **side paths** would make Playwright-only coverage too slow for CI.
+- Cover **component/API contracts**: happy paths plus edge cases (errors, filters, authz failures, empty sets) so callers’ expectations are not silently broken.
+- Includes overall behavior of **orchestrating** service/usecase entrypoints (multi-step workflows).
+- Tooling: stack-standard libraries (see go-core, rust-core, Python FastAPI, Go/Rust stack testing sections).
+
+### Unit
+
+- Purpose: lock the **contract of a single-job function** so a change that breaks other callers fails fast and points at that unit (granularity when a large E2E fails).
+- **Unit-test leaves, not orchestrators.** Do **not** unit-test feature/usecase service entrypoints that only sequence many steps (update DB + log + notify + …). Cover that composed behavior with E2E or L2.
+- **Do** unit-test the single-job helpers those entrypoints call. If a helper still does multiple jobs, split again and unit-test the new leaves — same idea all the way down (code-craft Composition).
+- Test **what** a leaf returns/does for given inputs — not **how**.
+- Skip trivial pass-throughs. If you need heavy mocking of collaborators to unit-test something, you are usually testing an orchestrator or the wrong layer — move coverage up (L2/E2E) or extract a real leaf.
+
+### Choosing a level
+
+1. Main user path → E2E (or L1 if a third party blocks).
+2. Important non-main / side path → L1 subset if UI-valuable and CI budget allows; else L2.
+3. Contracts/edge cases between backend components, workers, endpoints → L2 (includes orchestrators).
+4. Single-job leaves with clear contracts → unit (not the multi-step callers).

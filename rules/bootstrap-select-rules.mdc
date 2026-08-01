@@ -1,0 +1,99 @@
+---
+description: greenfield project setup — select architecture rule preset from agent-dev-rules and scaffold
+alwaysApply: false
+---
+# Bootstrap: select and install architecture rules
+
+Use when starting a **new project** or when the user asks to install / refresh architecture rules from [agent-dev-rules](https://github.com/vcamp314/agent-dev-rules).
+
+Do **not** paste the full architecture pack into global User Rules. Install stack rules into the **project** `.cursor/rules/`.
+
+## Workflow mode
+
+1. Prefer **Plan mode** for architecture discussion and preset confirmation.
+2. After the user approves the plan, switch to **Agent mode** to fetch rules and scaffold.
+3. Stop for confirmation before large irreversible choices (e.g. monorepo vs single service, language/stack).
+
+## Decision tree (ask / confirm)
+
+Confirm with the user:
+
+1. **Shape:** frontend-only vs single backend service vs full monorepo (`frontend/` + `backend/`).
+2. **Backend stacks present** (if any): Go HTTP (Echo), Go gRPC, Python FastAPI, Rust HTTP (Axum), Rust gRPC (Tonic).
+3. **Frontend extras** (if React): HTTP API client? protobuf/TS clients? Rust WASM (`crates/`)?
+4. **Testing / CI:** automated tests now? GitHub Actions now?
+5. **Rare:** cross-domain `backend-usecases`?
+
+Then emit the **exact file list** to install (filenames below). Always also install workflow rules:
+
+- `feature-workflow.mdc`
+- `multi-critic-protocol.mdc`
+
+### Preset: Frontend-only (React)
+
+| Always | Add when… |
+|--------|-----------|
+| `code-craft`, `frontend-core` | — |
+| + `http-api-contract`, `frontend-http-api` | App calls an HTTP API |
+| + `frontend-protobuf-gen` | Generated protobuf/TS clients |
+| + `rust-core`, `frontend-rust-wasm` | `crates/` + WASM |
+| + `testing`, `frontend-testing` | Automated tests |
+| + `ci-github` | GitHub Actions |
+
+### Preset: Single HTTP API (no monorepo)
+
+Always: `code-craft`, `http-api-contract`. Pick one stack:
+
+- **Go:** + `go-core`, `backend-go-http-architecture-patterns`
+- **Python:** + `backend-python-fastapi-architecture-patterns`
+- **Rust:** + `rust-core`, `backend-rust-http-architecture-patterns`
+
+Optional: `testing`, `ci-github`, `backend-usecases` (rare cross-domain orchestration).
+
+### Preset: Single gRPC service (no monorepo)
+
+Do **not** include `http-api-contract`.
+
+- **Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`
+- **Rust:** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`
+
+Optional: `testing`, `ci-github`.
+
+### Preset: Full monorepo
+
+Always: `monorepo-architecture`, `code-craft`.
+
+Then add per surface actually present:
+
+| Surface | Include |
+|---------|---------|
+| React | `frontend-core` (+ `frontend-http-api` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `rust-core` as needed) |
+| Go HTTP | `http-api-contract`, `go-core`, `backend-go-http-architecture-patterns` |
+| Go gRPC | `go-core`, `backend-go-grpc-architecture-patterns` |
+| Python FastAPI | `http-api-contract`, `backend-python-fastapi-architecture-patterns` |
+| Rust HTTP | `http-api-contract`, `rust-core`, `backend-rust-http-architecture-patterns` |
+| Rust gRPC | `rust-core`, `backend-rust-grpc-architecture-patterns` |
+| Cross-domain usecases | `backend-usecases` |
+| Automated tests | `testing` (+ `frontend-testing` for UI/E2E/L1) |
+| CI | `ci-github` |
+
+## Fetch and install
+
+1. Download the listed `.mdc` files from `https://github.com/vcamp314/agent-dev-rules` into the project’s `.cursor/rules/` (clone, sparse-checkout, or raw GitHub download). Prefer the repo’s `rules/` directory.
+2. Also copy `feature-workflow.mdc` and `multi-critic-protocol.mdc` into `.cursor/rules/`.
+3. If project (or user) agents are missing, copy `agents/*.md` from agent-dev-rules into `.cursor/agents/` and/or remind the user to sync to `~/.cursor/agents/`.
+4. Do **not** invent private product names; use placeholder domain names from the stack rules.
+
+## Scaffold
+
+Using the installed stack rules’ layout trees:
+
+1. Create a blank **runnable** app skeleton (minimal hello-path).
+2. Initialize git + `main` if missing; add a sensible stack `.gitignore` (do **not** gitignore the user’s unrelated local scripts just to silence `git status`).
+3. Pin package manager / Go / Rust toolchain versions appropriately for the scaffold.
+4. Document local test commands in the project README (`testing` / stack scripts).
+5. If the user asked for CI, scaffold `.github/workflows` per `ci-github` (lint/unit/L2; E2E triggers as that rule specifies). No deploy stubs unless the user asked.
+
+## Refresh later
+
+Point the user at `/sync-rules` (or re-run this bootstrap) to refresh files from agent-dev-rules without wiping local edits blindly—diff and confirm overwrites.

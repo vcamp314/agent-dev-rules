@@ -1,0 +1,165 @@
+---
+description: for Python FastAPI HTTP servers
+alwaysApply: false
+---
+  You are an expert in Python, FastAPI, and scalable API development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
+
+  Pair with: code-craft, http-api-contract, and backend-usecases (when cross-domain orchestration applies). Include `testing` when writing automated tests.
+
+### Key Principles
+  - Write concise, technical Python code (see also code-craft).
+  - Use descriptive variable names with auxiliary verbs (e.g., is_active, has_permission).
+  - Use lowercase with underscores for directories and files (e.g., features/user_profile/).
+  - Favor named exports for routes and utility functions.
+  - Use the Receive an Object, Return an Object (RORO) pattern.
+  - Organize by feature under `src/features/<name>/`, not by technical layer folders alone.
+  - Do **not** put a `services/` package inside a feature — feature logic stays in that feature’s `service.py`. Shared domain modules live only at `src/services/<name>/`.
+  - Package roles (aligned with Go backend vocabulary — do not conflate these):
+    - `src/features/<name>/` — primary unit: router/schemas + feature-owned service/repository
+    - `src/services/<name>/` — shared application/domain services used by 2+ features (no FastAPI routers). Promote only after real reuse; do not put domain workflows in `common/`
+    - `src/integrations/<name>/` — external systems (LLM, email, Cognito, …), injectable/swappable
+    - `src/database/` — DB session/engine setup (and related SQL infra helpers)
+    - `src/common/` — dumb helpers/shared middleware only, extracted after real reuse
+    - `src/usecases/<name>/` — optional; rare cross-domain orchestration APIs (see backend-usecases)
+  - Single-provider integrations may start with `client.py` + `models.py` only; add `<provider>.py` when a second vendor/impl appears.
+  - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers; do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - Follow http-api-contract for `/<audience>/v1/...` routes and UUID v7 IDs.
+
+### Python/FastAPI
+  - Use def for pure functions and async def for asynchronous operations.
+  - Use type hints for all function signatures (including returns). Prefer Pydantic models over raw dictionaries for input validation and response schemas.
+  - Prefer mypy (or equivalent) in CI when the service is typed; avoid `Any` and untyped dicts in new code except at rare boundaries — narrow into models/TypedDicts immediately.
+  - Prefer `typing.Protocol` / ABCs for injectable seams instead of untyped callables.
+  - Use ruff for linting/formatting and mypy for type checks
+  - Prefer UUID v7 for IDs (see code-craft / http-api-contract).
+  - When this service lives in a polyglot monorepo, place it under `backend/<service>/` (see monorepo architecture rules). Keep the internal module layout below inside that service folder; compose stays at the repo root.
+  - File structure (feature module approach):
+
+```text
+fastapi-project/                          # e.g. backend/aserver when in a monorepo
+├── alembic/                              # Preferred: migrations at service root (alembic.ini + alembic/). Or under src/database/migrations/ if you colocate SQL infra — pick one layout per service
+├── src/
+│   ├── features/                         # PRIMARY unit of organization
+│   │   ├── <feature>/                    # e.g. auth, user, posts
+│   │   │   ├── router.py
+│   │   │   ├── router_test.py
+│   │   │   ├── schemas.py                # Pydantic request/response models
+│   │   │   ├── dependencies.py
+│   │   │   ├── config.py                 # Feature-local configs
+│   │   │   ├── constants.py
+│   │   │   ├── exceptions.py             # Feature/API-layer exceptions / mappers
+│   │   │   ├── service.py                # Feature-owned business logic
+│   │   │   ├── service_test.py
+│   │   │   ├── repository.py             # Optional: when persistence needs a dedicated layer
+│   │   │   ├── utils.py
+│   │   │   └── utils_test.py
+│   │   └── ...
+│   │
+│   ├── services/                         # Shared app/domain services (after 2+ features need them)
+│   │   ├── <name>/                       # e.g. notifications — injectable; no routers
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py                 # Domain models
+│   │   │   ├── repository.py             # Data access if needed
+│   │   │   ├── service.py                # Business rules / workflows
+│   │   │   └── utils.py                  # Pure helpers (no FastAPI)
+│   │   └── ...
+│   │
+│   ├── integrations/                     # Third-party adapters (injectable/swappable)
+│   │   ├── <name>/                       # e.g. llm/, email/
+│   │   │   ├── __init__.py
+│   │   │   ├── client.py                 # Provider-agnostic interface + wiring
+│   │   │   ├── <provider>.py             # Optional until a second vendor appears
+│   │   │   └── models.py                 # DTOs / response models
+│   │   └── ...
+│   │
+│   ├── usecases/                         # Optional: rare cross-domain orchestration (see backend-usecases)
+│   │   └── <name>/                       # Same shape as a feature (router, schemas, service, …)
+│   │       ├── router.py
+│   │       ├── schemas.py
+│   │       ├── service.py                # Orchestrates features/services/integrations only
+│   │       └── ...
+│   │
+│   ├── database/                         # DB connection/session setup (not a dumping ground for Alembic unless colocated by choice above)
+│   │   └── ...
+│   ├── common/                           # Dumb helpers only — after real reuse
+│   │   └── ...
+│   ├── config.py                         # Global configs
+│   ├── exceptions.py                     # Global exceptions / handlers
+│   ├── pagination.py                     # Global helpers (e.g. pagination)
+│   └── main.py                           # FastAPI app, router include, lifespan
+├── requirements/                         # Or pyproject + uv
+│   ├── base.txt
+│   ├── dev.txt
+│   └── prod.txt
+├── .env
+├── .gitignore
+├── logging.ini
+└── alembic.ini
+```
+
+  - If any file in a feature gets long (> 300 lines), consider creating a folder and break the file into parts if reasonable ways of dividing the file exist (e.g. from dependencies.py to dependencies/redis.py dependencies/aws.py)
+  - Set up routers to dependency inject (using FastAPI's Depends) interfaces of services for pluggability — wire integrations, shared `services/`, feature services, and optional usecases at the composition root (`main` / dependencies).
+  - If a feature has many queries and it makes sense to separate concerns (e.g. SQLAlchemy + raw SQL + Redis, or multi-DB), introduce `repository.py` implementing interfaces that are dependency injected into the feature service (as services are to routers)
+
+### Use Cases
+
+  Follow backend-usecases. Paths for this stack: `src/usecases/<name>/` (file set shown in the tree above).
+
+### Testing
+  - Follow `testing.mdc` for E2E / L1 / L2 / unit level selection (unit-test leaves, not orchestrators).
+  - Unit: **pytest**; colocated `*_test.py` next to the code under test.
+  - L2 HTTP: `httpx.AsyncClient` with FastAPI/`ASGI` (or Starlette `TestClient`) for endpoint contracts and edge cases.
+  - L2 workers: invoke job functions with fakes for clocks/notifiers; assert outcomes.
+  - Fake at integration boundaries for L2; do not unit-test multi-step service entrypoints with heavy mocks of every collaborator.
+
+### Error Handling and Validation
+  - Prioritize error handling and edge cases:
+    - Handle errors and edge cases at the beginning of functions.
+    - Use early returns for error conditions to avoid deeply nested if statements.
+    - Place the happy path last in the function for improved readability.
+    - Avoid unnecessary else statements; use the if-return pattern instead.
+    - Use guard clauses to handle preconditions and invalid states early.
+    - Implement proper error logging and user-friendly error messages.
+    - Use custom error types or error factories for consistent error handling.
+
+### Dependencies
+  - Use uv for dependency management
+  - FastAPI
+  - Pydantic v2
+  - Async database libraries like asyncpg or aiomysql
+  - SQLAlchemy 2.0 (if using ORM features)
+  - pytest (unit / L2)
+  - httpx (L2 HTTP client against the app)
+  - UUID v7 (uuid7) for primary keys / public identifiers (see code-craft)
+
+### FastAPI-Specific Guidelines
+  - Use functional components (plain functions) and Pydantic models for input validation and response schemas.
+  - Use declarative route definitions with clear return type annotations.
+  - Follow http-api-contract for route shape (`/<audience>/v1/...`).
+  - Keep routers thin: parse/validate → call feature or usecase service → map errors to HTTP.
+  - Use def for synchronous operations and async def for asynchronous ones.
+  - Minimize @app.on_event("startup") and @app.on_event("shutdown"); prefer lifespan context managers for managing startup and shutdown events.
+  - Use middleware for logging, error monitoring, and performance optimization.
+  - Optimize for performance using async functions for I/O-bound tasks, caching strategies, and lazy loading.
+  - Use HTTPException for expected errors and model them as specific HTTP responses.
+  - Use middleware for handling unexpected errors, logging, and error monitoring.
+  - Use Pydantic's BaseModel for consistent input/output validation and response schemas.
+
+### Performance Optimization
+  - Minimize blocking I/O operations; use asynchronous operations for all database calls and external API requests.
+  - Implement caching for static and frequently accessed data using tools like Redis or in-memory stores.
+  - Optimize data serialization and deserialization with Pydantic.
+  - Use lazy loading techniques for large datasets and substantial API responses.
+
+  Key Conventions
+  1. Organize by `features/`; shared domain in `services/` after reuse; externals in `integrations/`; dumb helpers in `common/`; optional orchestration in `usecases/`.
+  2. Rely on FastAPI’s dependency injection system for managing state and shared resources.
+  3. Prioritize API performance metrics (response time, latency, throughput).
+  4. Limit blocking operations in routes:
+     - Favor asynchronous and non-blocking flows.
+     - Use dedicated async functions for database and external API operations.
+     - Structure routes and dependencies clearly to optimize readability and maintainability.
+  5. Prefer uuid7 IDs and `/<audience>/v1/...` routes (code-craft + http-api-contract).
+  6. Follow the best practices outlined in the readme of this repo when not in conflict with the rules already outlined: https://github.com/zhanymkanov/fastapi-best-practices
+
+  Refer to FastAPI documentation for Data Models, Path Operations, and Middleware for best practices.

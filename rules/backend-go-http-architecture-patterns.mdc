@@ -1,0 +1,189 @@
+---
+description: for http go servers (excludes gRPC servers)
+alwaysApply: false
+---
+  You are an expert in Go, Echo, and scalable HTTP API development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
+
+  Pair with: code-craft, go-core, http-api-contract, and backend-usecases (when cross-domain orchestration applies). Include `testing` when writing automated tests.
+
+### Key Principles
+  - Write concise, technical Go code (see also code-craft and go-core).
+  - Organize by feature under `internal/features/<name>/`, not by technical layer folders.
+  - Within a feature, group by fixed file responsibilities (`endpoints.go`, `service.go`, `repository.go`, `errors.go`, `config.go`; add `dto.go` / `entity.go` when request/domain types outgrow the main files).
+  - Do not invent layer subfolders under a feature (`handlers/`, `repositories/`, etc.). In particular, do **not** put a `services/` directory inside a feature package — feature logic stays in that package’s `service.go`. Shared domain modules live only at `internal/services/<name>/`.
+  - Package roles (do not conflate these):
+    - `internal/features/<name>/` — primary unit: transport + feature-owned domain logic
+    - `internal/services/<name>/` — shared application/domain services used by 2+ features (not HTTP handlers). Promote here only after real reuse; do not put domain workflows in `common/`
+    - `internal/integrations/<name>/` — external systems (NATS, Cognito, LLM, email, …)
+    - `internal/database/` — SQL infra (migrations, queries, sqlc)
+    - `internal/common/` — dumb helpers/middleware only, extracted after real reuse (no domain workflows)
+    - `internal/usecases/<name>/` — optional; rare cross-domain orchestration APIs (see backend-usecases)
+  - Feature-only adapters may start inside the feature and move to `integrations/` when they become service-wide.
+  - Single-provider integrations may start with `client.go` + `models.go` only; add `<provider>.go` when a second vendor/impl appears.
+  - Features may be SQL-backed or not (e.g. filesystem/Obsidian repos are fine when that is the domain).
+  - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers (persist, notify, validate, …); do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - Follow http-api-contract for `/<audience>/v1/...` routes and UUID v7 IDs.
+
+### Go/Echo
+  - Prefer clear, small functions; keep handlers thin and push use-case logic into services.
+  - Use typed structs for request/response DTOs; validate with go-playground/validator when validation grows beyond simple checks.
+  - Prefer UUID v7 for IDs (see code-craft / http-api-contract / go-core).
+  - File structure (feature module approach):
+
+```text
+httpserver/                          # e.g. backend/aserver (or domain name such as apiserver)
+├── cmd/
+│   ├── server/main.go               # HTTP API entrypoint
+│   └── migrator/main.go             # Optional: only if an in-process migrator binary is needed
+├── Dockerfile                       # Production build (prefer multi-stage; distroless optional)
+├── Dockerfile.air                   # Optional: hot-reload local image
+├── sqlc.yaml                        # When the service uses SQL
+├── docs/                            # Optional: API / schema docs
+├── internal/
+│   ├── server/                      # Echo bootstrap, middleware, route wiring, lifecycle
+│   ├── environment/                 # Config from env (default)
+│   ├── config/                      # Optional: Viper/YAML loaders when multi-env needs them
+│   ├── monitoring/                  # Optional: OTel traces/metrics/error helpers
+│   ├── tools/                       # Optional: migrator helpers
+│   ├── database/                    # SQL infra (only if DB used)
+│   │   ├── migrations/              # golang-migrate up/down SQL (schema source for sqlc)
+│   │   ├── queries/                 # sqlc query definitions (hand-written .sql)
+│   │   └── sqlc/                    # sqlc-generated code (do not hand-edit)
+│   ├── integrations/                # External-system adapters (only when needed)
+│   │   └── <name>/                  # e.g. llm/, email/, cognito/
+│   │       ├── client.go            # Provider-agnostic interface + wiring
+│   │       ├── <provider>.go        # Optional until a second vendor appears
+│   │       ├── models.go            # DTOs / request-response types for this integration
+│   │       └── client_test.go       # Optional
+│   ├── services/                    # Shared app/domain services (only after 2+ features need them)
+│   │   └── <name>/                  # e.g. notifications/ — no HTTP handlers here
+│   │       ├── service.go           # Business rules / workflows
+│   │       ├── models.go            # Domain models / types
+│   │       ├── repository.go        # Optional: when this shared service owns persistence
+│   │       └── service_test.go      # Optional
+│   ├── features/<feature>/          # PRIMARY unit of organization
+│   │   ├── endpoints.go             # HTTP handlers (+ route registration helpers if useful)
+│   │   ├── service.go               # Feature-owned use-case logic; orchestrates repos/integrations/services
+│   │   ├── repository.go            # Repository interface + implementation (SQL, FS, etc.)
+│   │   ├── errors.go                # Expected domain / feature-level errors
+│   │   ├── config.go                # Feature-specific configuration types
+│   │   ├── dto.go                   # Optional: split out when HTTP payloads grow
+│   │   ├── entity.go                # Optional: split out when domain types grow
+│   │   ├── injector.go              # Optional: Wire defs when DI complexity warrants it
+│   │   └── injector_gen.go          # Optional: generated Wire (do not hand-edit)
+│   ├── usecases/                    # Optional: rare cross-domain orchestration (see backend-usecases)
+│   │   └── <name>/
+│   │       ├── endpoints.go         # HTTP handlers for this product action
+│   │       ├── service.go           # Orchestrates features/services/integrations only
+│   │       ├── errors.go
+│   │       ├── dto.go               # Optional
+│   │       └── config.go            # Optional
+│   └── common/                      # Dumb helpers/middleware only — after real reuse
+│       ├── http/                    # shared request/response helpers, middleware
+│       └── utils/                   # shared id, enum, pointer, json helpers
+└── ...
+
+# Monorepo (repo root — not inside each HTTP service):
+docker-compose.yml                   # Local infra + services
+docker-compose.dev.yml               # Optional: air/hot-reload overrides
+```
+
+  - High-level `internal/` responsibilities:
+    - `server/`: Echo setup, middleware, logging, route groups, startup/shutdown
+    - `environment/`: env-based config loading (default)
+    - `database/`: connection setup, migrations, sqlc queries + generated code
+    - `integrations/`: adapters for external systems the service depends on
+    - `services/`: shared domain/application logic used by multiple features (no transport)
+    - `features/<name>/`: handlers, feature-owned services, repositories, feature errors/config
+    - `usecases/<name>/`: optional cross-domain orchestration endpoints (see backend-usecases)
+    - `common/`: helpers/middleware only — never domain workflows
+    - `monitoring/`, `tools/`, Wire injectors: add when needed, not by default
+  - If any file in a feature gets long (> 300 lines), split by clear responsibility within the same package (`dto.go`, `entity.go`, or smaller focused files) — still prefer flat files over inventing layer folders.
+  - DI: manual constructors in `server.New` (or equivalent) are the default — wire integrations, shared `services/`, feature services, and optional usecases into handlers. Introduce Google Wire when wiring becomes painful.
+  - Prefer sqlc (see go-core). Hand-write SQL in `internal/database/queries/`; generate typed Go into `internal/database/sqlc/`. Map sqlc models ↔ domain entities in the repository layer. Do not hand-edit sqlc output.
+  - Soft-delete (`deleted_at IS NULL`) and RLS-aware helpers: use only when the domain/tenancy model requires them.
+  - Register routes from `internal/server` under audience + version groups (http-api-contract). Feature (and usecase) packages own handlers; the server owns top-level group wiring.
+
+### Use Cases
+
+  Follow backend-usecases. Paths for this stack: `internal/usecases/<name>/` (file set shown in the tree above).
+
+### Naming Conventions
+  - Follow go-core for package-context type names, `Err` prefix, and conversion-helper placement.
+  - Method names: idiomatic Go is fine (`GetGoal`, `ListGoals`, `CreateGoal`). Do not require omitting `Get`/`Find`.
+  - Request / response structs: `Request` / `Response` suffix when useful (e.g. `GoalRequest`, `ScheduleResponse`).
+  - Nested objects in request/response: `Dto` suffix when it clarifies nesting (e.g. `UserDto`).
+  - Service inputs/filters: clear names such as `GoalCreateInput`, `TaskListFilter` (or Spec/Command styles if the feature prefers them — stay consistent within a feature).
+
+### Error Handling and Validation
+  - Follow go-core for early returns, `Err` vars, `errors.Is`, and `%w` wrapping.
+  - Unexpected errors via monitoring helpers when those exist in the service; otherwise log and return a generic 500 mapping.
+  - In handlers, map domain errors to HTTP status codes; prefer shared HTTP error helpers once more than one feature needs the same mapping.
+  - Prefer shared validation/timeout middleware once multiple routes need the same behavior.
+
+### Dependencies
+  - Language / lint / tests / IDs / SQL driver+sqlc preferences: see go-core
+  - HTTP: Echo v4 (`labstack/echo`)
+  - Migrations (when SQL): golang-migrate
+  - Config: env via `internal/environment` by default; Viper + YAML optional for richer multi-env setups
+  - Validation: go-playground/validator when needed
+  - Optional as needed: Wire, zerolog, OpenTelemetry, swag/Redocly, tbls, uber-go/mock, air, Just, echo-jwt / Cognito (only if the service needs auth)
+
+### Echo/HTTP-Specific Guidelines
+  - Keep handlers as thin adapters: parse/validate → call service → map result/errors to HTTP.
+  - Use declarative route registration with clear request/response types.
+  - Follow http-api-contract for route shape (`/<audience>/v1/...`).
+  - Swagger/OpenAPI annotations are encouraged for stable public surfaces; optional for early/internal endpoints. When used, keep annotations complete and regenerate docs as part of the service workflow.
+  - Example Swagger annotations when documenting an endpoint:
+
+```go
+// @ID uniqueOperationID
+// @Summary Brief description
+// @Description Detailed explanation
+// @Tags FeatureName
+// @Accept json
+// @Produce json
+// @Param name location type required "description"
+// @Success 200 {object} ResponseModel
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /web/v1/path [method]
+```
+
+  - Common status codes: 200 OK, 201 Created, 204 No Content, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 500 Internal Server Error.
+  - Prefer shared middleware for logging, CORS, auth (when required), validation, and timeouts over per-handler one-offs.
+  - Local secrets in `.env` / env vars; never commit credentials.
+  - Auth (JWT/Cognito/etc.) is optional — add only when the service needs identity.
+
+### Database and Migrations
+  - Use golang-migrate; running via compose migrate image or `migrate` CLI is fine. An in-repo `cmd/migrator` is optional.
+  - A migration file may contain multiple related queries.
+  - Naming:
+    - Create table: `create_<DOMAIN_NAME>_table` (e.g. `create_user_table`)
+    - Alter table: `alter_<TABLE_NAME>_<DESCRIPTION>` (e.g. `alter_user_add_name_column`)
+  - After schema changes: apply migrations, then regenerate sqlc (`sqlc generate` or the service’s task runner equivalent).
+  - Soft-delete patterns (filter `deleted_at IS NULL`) only when the schema uses soft deletes.
+  - Keep sqlc query names and `:one` / `:many` / `:exec` annotations clear; prefer one concern per `.sql` query file grouping when reasonable.
+
+### DI, Mocks, and Testing
+  - Default wiring: construct repos → services → handlers in `internal/server` (or `cmd/server`) with plain constructors.
+  - Add Wire when constructor graphs become hard to maintain; do not hand-edit generated Wire output.
+  - Follow `testing.mdc` for what to test at each level. Tooling: see go-core (testify, httptest for L2 HTTP).
+  - Unit-test single-job helpers (`*_test.go` colocated); do not unit-test multi-step service entrypoints with heavy mocks — cover those via L2/E2E.
+  - When using mocks/fakes: keep them next to the interface; name `*_mock.go` (or the tool’s equivalent). Fake at integration boundaries for L2.
+  - If the service has a Justfile (or similar), prefer it for migrate / sqlc / lint / test / run; otherwise use the documented go/sqlc/migrate commands. Do not invent a Just workflow solely to satisfy these rules.
+
+### Performance and Observability
+  - Minimize blocking I/O; keep DB and external calls context-aware and cancellable.
+  - Add OpenTelemetry / metrics when operational needs justify them; not required for every service from day one.
+  - Cache static or frequently accessed data when latency budgets require it (e.g. Redis), behind injectable interfaces.
+  - Prefer multi-stage Docker builds; distroless/nonroot is a good production target when you harden images.
+
+  Key Conventions
+  1. Organize by feature; keep layered responsibilities inside the feature via flat files (`endpoints`, `service`, `repository`, `errors`, `config`).
+  2. Use manual DI by default; Wire only when complexity warrants it.
+  3. Put SQL under `internal/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain APIs under `usecases/`.
+  4. Do not hand-edit sqlc-generated code (or Wire `injector_gen.go` when present).
+  5. Routes are `/<audience>/v1/...`; health and similar ops routes may be separate.
+  6. Follow go-core error wrapping and interface-placement rules; map domain errors to HTTP at the handler boundary.
+  7. Treat Cognito/JWT, OTel, Swagger, Just, soft-delete, RLS, and `usecases/` as opt-in — not mandatory scaffolding.

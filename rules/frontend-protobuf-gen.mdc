@@ -1,0 +1,22 @@
+---
+description: frontend protobuf generated clients under shared/gen/pb
+alwaysApply: false
+---
+Use these rules when the frontend consumes generated protobuf/TypeScript clients. Pair with frontend-core (and monorepo architecture rules when protobuf lives in a monorepo).
+
+### Layout
+
+- Generated protobuf/TS clients live under `src/shared/gen/pb/` at the frontend package root (in a monorepo that is typically `frontend/src/shared/gen/pb/`).
+
+```text
+src/
+└── shared/
+    └── gen/
+        └── pb/          # Generated protobuf/TS clients
+```
+
+### Rules
+
+- Never hand-edit files under `src/shared/gen/pb/`.
+- Regenerate from the project's protobuf sources (e.g. `buf generate` when using the monorepo `protobuf/` + buf workflow).
+- Prefer a shared gen package consumed by all `apps/*` rather than copying generated clients into each app.

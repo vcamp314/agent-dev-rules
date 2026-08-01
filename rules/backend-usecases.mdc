@@ -1,0 +1,39 @@
+---
+description: backend usecases — when to add rare cross-domain orchestration modules
+alwaysApply: false
+---
+Apply with Go HTTP, Go gRPC, Python FastAPI, Rust HTTP, or Rust gRPC rules. Paths: `internal/usecases/` (Go) or `src/usecases/` (Python / Rust).
+
+### What a usecase is
+
+Use cases are **optional and rare**. Do not create an empty `usecases/` folder up front.
+
+A module belongs in `usecases/<name>/` when **all** of the following hold:
+1. It is a **product action** with its own API/RPC surface (not just another method on one resource).
+2. It **orchestrates 2+ features and/or integrations** (and maybe shared `services/`).
+3. Putting it inside one feature would **misrepresent ownership** or create awkward feature↔feature dependency webs.
+
+### Examples that fit
+
+- **OnboardUser** — identity (`integrations`) + profile (`features/users`) + default workspace (`features/workspaces`) + welcome email
+- **Checkout / PlaceOrder** — cart, inventory, payments, shipping (no single CRUD feature owns the saga)
+- **CloseBillingPeriod** — metering + invoicing + charge + notify
+
+### Prefer not using usecases when
+
+- Feature A’s service calls feature B through a **small interface** (define where used; wire at the composition root) — normal composition
+- The endpoint/RPC clearly belongs to one aggregate (e.g. create subtask under tasks)
+- Complexity is speculative (“might need orchestration later”)
+
+### Alternatives and dependency direction
+
+- Alternative that is often enough: a feature named for the action (`features/onboarding`) that only orchestrates.
+- Introduce a separate `usecases/` tree when you want a hard boundary: features do not depend on each other; only usecases orchestrate across features.
+- Dependency direction: `usecases` → `features` / `services` → `integrations` / `database`. Features must not depend on usecases.
+
+### Shape
+
+- Structure a usecase module like a feature (transport + orchestration service; no owning a large domain model of its own).
+- Go: `endpoints.go`, `service.go`, `errors.go`, optional `dto.go` / `config.go` (same flat style as features).
+- Python: `router.py`, `schemas.py`, `service.py`, etc. (same shape as a feature).
+- Rust: `mod.rs`, `endpoints.rs`, `service.rs`, `error.rs`, optional `dto.rs` / `config.rs` (same flat style as features).

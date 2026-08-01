@@ -1,0 +1,201 @@
+---
+description: for http rust servers (Axum; excludes gRPC servers)
+alwaysApply: false
+---
+  You are an expert in Rust, Axum, and scalable HTTP API development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
+
+  Pair with: code-craft, rust-core, http-api-contract, and backend-usecases (when cross-domain orchestration applies). Include `testing` when writing automated tests.
+
+### Key Principles
+  - Write concise, technical Rust code (see also code-craft and rust-core).
+  - Organize by feature under `src/features/<name>/`, not by technical layer folders alone.
+  - Within a feature, group by fixed file responsibilities (`endpoints.rs`, `service.rs`, `repository.rs`, `error.rs`, `config.rs`; add `dto.rs` / `entity.rs` when request/domain types outgrow the main files).
+  - Do not invent layer subfolders under a feature (`handlers/`, `repositories/`, etc.). In particular, do **not** put a `services/` directory inside a feature module — feature logic stays in that feature’s `service.rs`. Shared domain modules live only at `src/services/<name>/`.
+  - Package roles (do not conflate these):
+    - `src/features/<name>/` — primary unit: transport + feature-owned domain logic
+    - `src/services/<name>/` — shared application/domain services used by 2+ features (not HTTP handlers). Promote here only after real reuse; do not put domain workflows in `common/`
+    - `src/integrations/<name>/` — external systems (NATS, Cognito, LLM, email, …)
+    - `src/database/` — SQL infra (pool, migrations, sqlx queries)
+    - `src/common/` — dumb helpers/middleware only, extracted after real reuse (no domain workflows)
+    - `src/usecases/<name>/` — optional; rare cross-domain orchestration APIs (see backend-usecases)
+  - Modules are crate-private by default; `pub` only when another module needs the item (Rust’s equivalent of Go’s `internal/` visibility).
+  - Feature-only adapters may start inside the feature and move to `integrations/` when they become service-wide.
+  - Single-provider integrations may start with `client.rs` + `models.rs` only; add `<provider>.rs` when a second vendor/impl appears.
+  - Define traits where they are used, not where they are implemented. Keep traits small and single-responsibility.
+  - Always update aggregates through their aggregate root; do not mutate child entities from outside the root.
+  - Features may be SQL-backed or not (e.g. filesystem repos are fine when that is the domain).
+  - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers; do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - Follow http-api-contract for `/<audience>/v1/...` routes and UUID v7 IDs.
+
+### Rust/Axum
+  - Prefer clear, small functions; keep handlers thin and push use-case logic into services.
+  - Use typed structs for request/response DTOs with `serde`; validate with `validator` / extractor checks when validation grows beyond simple checks.
+  - Use `rustfmt` and `clippy` when those tools are set up for the service.
+  - Prefer sqlx for PostgreSQL (compile-time checked queries when using offline/online macros).
+  - Prefer UUID v7 for IDs (see code-craft / http-api-contract).
+  - Time: `chrono` or `time` crate — pick one per service and stay consistent.
+  - File structure (feature module approach):
+
+```text
+httpserver/                          # e.g. backend/aserver (or domain name such as apiserver)
+├── Cargo.toml
+├── Dockerfile                       # Production build (prefer multi-stage)
+├── .env.example                     # Optional but recommended
+├── migrations/                      # sqlx migrate (when SQL used) — or under src/database/migrations/
+├── docs/                            # Optional: API / schema docs
+├── tests/                           # Optional: integration / heavier tests
+├── src/
+│   ├── main.rs                      # Thin: load env → server::run
+│   ├── lib.rs                       # Optional: re-exports modules when useful for tests
+│   ├── server/
+│   │   ├── mod.rs
+│   │   ├── app.rs                   # Axum Router build, middleware, lifecycle
+│   │   └── state.rs                 # Shared AppState / typed deps (optional early)
+│   ├── environment/
+│   │   └── mod.rs                   # Config from env (default)
+│   ├── config/                      # Optional: richer multi-env loaders
+│   │   └── mod.rs
+│   ├── monitoring/                  # Optional: OTel / tracing helpers
+│   │   └── mod.rs
+│   ├── database/                    # SQL infra (only if DB used)
+│   │   ├── mod.rs                   # Pool setup
+│   │   ├── migrations/              # If not at service root
+│   │   └── queries/                 # sqlx query modules / query files
+│   ├── integrations/                # External-system adapters (only when needed)
+│   │   └── <name>/                  # e.g. llm/, email/, cognito/
+│   │       ├── mod.rs
+│   │       ├── client.rs            # Provider-agnostic trait + wiring
+│   │       ├── <provider>.rs        # Optional until a second vendor appears
+│   │       ├── models.rs            # DTOs / request-response types
+│   │       └── client_test.rs       # Optional (or #[cfg(test)] in client.rs)
+│   ├── services/                    # Shared app/domain (only after 2+ features need them)
+│   │   └── <name>/                  # e.g. notifications/ — no HTTP handlers here
+│   │       ├── mod.rs
+│   │       ├── service.rs           # Business rules / workflows
+│   │       ├── models.rs            # Domain models / types
+│   │       ├── repository.rs        # Optional: when this shared service owns persistence
+│   │       └── service_test.rs      # Optional
+│   ├── features/
+│   │   └── <feature>/               # PRIMARY unit of organization
+│   │       ├── mod.rs
+│   │       ├── endpoints.rs         # Axum handlers + route registration helpers
+│   │       ├── service.rs           # Feature-owned logic; orchestrates repos/integrations/services
+│   │       ├── repository.rs        # Optional: SQL, FS, etc.
+│   │       ├── error.rs             # Feature/domain errors (thiserror)
+│   │       ├── config.rs            # Feature-specific configuration (when needed)
+│   │       ├── dto.rs               # Optional: HTTP payloads when types grow
+│   │       └── entity.rs            # Optional: domain types when they grow
+│   ├── usecases/                    # Optional: rare cross-domain orchestration (see backend-usecases)
+│   │   └── <name>/
+│   │       ├── mod.rs
+│   │       ├── endpoints.rs
+│   │       ├── service.rs           # Orchestrates features/services/integrations only
+│   │       ├── error.rs
+│   │       ├── dto.rs               # Optional
+│   │       └── config.rs            # Optional
+│   └── common/                      # Dumb helpers/middleware only — after real reuse
+│       ├── mod.rs
+│       ├── http/                    # shared extractors, response helpers, middleware
+│       │   └── mod.rs
+│       └── utils/                   # shared id, enum, json helpers
+│           └── mod.rs
+└── ...
+
+# Monorepo (repo root — not inside each HTTP service):
+docker-compose.yml
+docker-compose.dev.yml               # Optional
+```
+
+  - High-level `src/` responsibilities:
+    - `server/`: Axum setup, middleware, logging, route groups, startup/shutdown
+    - `environment/`: env-based config loading (default)
+    - `database/`: pool setup, migrations, sqlx queries
+    - `integrations/`: adapters for external systems the service depends on
+    - `services/`: shared domain/application logic used by multiple features (no transport)
+    - `features/<name>/`: handlers, feature-owned services, repositories, feature errors/config
+    - `usecases/<name>/`: optional cross-domain orchestration endpoints (see backend-usecases)
+    - `common/`: helpers/middleware only — never domain workflows
+    - `monitoring/`, richer `config/`: add when needed, not by default
+  - If any file in a feature gets long (> 300 lines), split by clear responsibility within the same module (`dto.rs`, `entity.rs`, or smaller focused files) — still prefer flat files over inventing layer folders.
+  - DI: manual construction in `server` (or `main`) is the default — wire integrations, shared `services/`, feature services, and optional usecases into handlers via `Arc` / owned state. No DI framework by default.
+  - Prefer sqlx over hand-written query glue or heavy ORMs. Map DB rows ↔ domain entities in the repository layer.
+  - Soft-delete (`deleted_at IS NULL`) and RLS-aware helpers: use only when the domain/tenancy model requires them.
+  - Register routes from `server` under audience + version groups (http-api-contract). Feature (and usecase) modules own handlers; the server owns top-level group wiring.
+
+### Use Cases
+
+  Follow backend-usecases. Paths for this stack: `src/usecases/<name>/` (file set shown in the tree above).
+
+### Naming Conventions
+  - Service / repository type names: rely on module context (`Service` in module `schedule`, not `ScheduleService` unless disambiguation is needed).
+  - Method names: idiomatic Rust (`get_goal`, `list_goals`, `create_goal`).
+  - Request / response structs: `Request` / `Response` suffix when useful (e.g. `GoalRequest`, `ScheduleResponse`).
+  - Nested objects in request/response: `Dto` suffix when it clarifies nesting (e.g. `UserDto`).
+  - Service inputs/filters: clear names such as `GoalCreateInput`, `TaskListFilter` — stay consistent within a feature.
+  - Defined errors: `thiserror` enums; variants or messages that read clearly (e.g. `NotFound`, `Conflict`).
+  - Conversion helpers: keep them close to the types they convert. Prefer clarity over a rigid naming ritual.
+
+### Error Handling and Validation
+  - Prioritize error handling and edge cases (see rust-core / code-craft):
+    - Handle errors and edge cases at the beginning of functions.
+    - Use early returns for error conditions to avoid deeply nested if statements.
+    - Place the happy path last in the function for improved readability.
+    - Avoid unnecessary else; use the if-return pattern instead.
+    - Use guard clauses to handle preconditions and invalid states early.
+  - Domain errors via `thiserror` in `error.rs`; map at the HTTP boundary.
+  - Prefer `?` and contextual wrapping (`anyhow` only at binary edges, or `.map_err` / `thiserror` sources inside the crate).
+  - In handlers, map domain errors to HTTP status codes; prefer shared HTTP error helpers once more than one feature needs the same mapping.
+  - Prefer shared validation/timeout middleware once multiple routes need the same behavior.
+
+### Dependencies
+  - Language: Rust (pin edition / toolchain in `Cargo.toml` / `rust-toolchain.toml`)
+  - HTTP: Axum + Tokio + Tower
+  - Serialization: serde / serde_json
+  - DB (when SQL): sqlx (prefer PostgreSQL + runtime-tokio)
+  - Migrations (when SQL): sqlx migrate
+  - Config: env via `src/environment` by default
+  - Errors: thiserror (domain); anyhow at `main` edges
+  - Logging: tracing + tracing-subscriber at the binary
+  - IDs: UUID v7 (see code-craft / http-api-contract)
+  - Lint/format: rustfmt + clippy when set up
+  - Optional as needed: OpenTelemetry, utoipa/OpenAPI, auth extractors (JWT/Cognito) only if the service needs identity
+
+### Axum/HTTP-Specific Guidelines
+  - Keep handlers as thin adapters: extract/validate → call service → map result/errors to HTTP.
+  - Use declarative route registration with clear request/response types.
+  - Follow http-api-contract for route shape (`/<audience>/v1/...`).
+  - OpenAPI (e.g. utoipa) is encouraged for stable public surfaces; optional for early/internal endpoints.
+  - Common status codes: 200 OK, 201 Created, 204 No Content, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 500 Internal Server Error.
+  - Prefer shared Tower/Axum middleware for logging, CORS, auth (when required), and timeouts over per-handler one-offs.
+  - Local secrets in `.env` / env vars; never commit credentials.
+  - Auth (JWT/Cognito/etc.) is optional — add only when the service needs identity.
+
+### Database and Migrations
+  - Prefer sqlx migrate; running via compose migrate job or `sqlx migrate run` is fine.
+  - A migration file may contain multiple related queries.
+  - Naming:
+    - Create table: `create_<DOMAIN_NAME>_table` (e.g. `create_user_table`)
+    - Alter table: `alter_<TABLE_NAME>_<DESCRIPTION>` (e.g. `alter_user_add_name_column`)
+  - After schema changes: apply migrations, then update sqlx query modules / refresh offline data as the service workflow requires.
+  - Soft-delete patterns (filter `deleted_at IS NULL`) only when the schema uses soft deletes.
+
+### DI, Mocks, and Testing
+  - Default wiring: construct repos → services → handlers in `server` (or `main`) with plain constructors / `AppState`.
+  - Follow `testing.mdc` for what to test at each level. Tooling: see rust-core (`cargo test`, Axum `oneshot` / `ServiceExt` for L2 HTTP).
+  - Unit-test single-job helpers (`#[cfg(test)]` / `*_test.rs`); cover orchestrators and HTTP contracts via L2 (`tests/`) or E2E.
+  - Prefer trait objects or generic bounds for L2 fakes at integration boundaries; keep fakes next to the trait or under `#[cfg(test)]`.
+  - If the service has a Justfile (or similar), prefer it for migrate / lint / test / run; otherwise use documented cargo/sqlx commands.
+
+### Performance and Observability
+  - Minimize blocking I/O on the async runtime; keep DB and external calls cancellable via `Context`/cancellation tokens where applicable.
+  - Add OpenTelemetry / metrics when operational needs justify them; not required for every service from day one.
+  - Cache static or frequently accessed data when latency budgets require it (e.g. Redis), behind injectable traits.
+  - Prefer multi-stage Docker builds; distroless/nonroot is a good production target when you harden images.
+
+  Key Conventions
+  1. Organize by feature; keep layered responsibilities inside the feature via flat files (`endpoints`, `service`, `repository`, `error`, `config`).
+  2. Use manual DI by default.
+  3. Put SQL under `src/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain APIs under `usecases/`.
+  4. Routes are `/<audience>/v1/...`; health and similar ops routes may be separate.
+  5. Follow rust-core error/`Result` practices, aggregate-root updates, and trait-placement rules above.
+  6. Treat auth, OTel, OpenAPI, soft-delete, RLS, and `usecases/` as opt-in — not mandatory scaffolding.

@@ -1,0 +1,138 @@
+---
+description: TypeScript/React frontend core (features, widgets, apps/ layout, Tailwind)
+alwaysApply: false
+---
+You are an expert in TypeScript, Vite, React and Tailwind. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
+
+Pair with: code-craft. Attach frontend-http-api when calling HTTP APIs; frontend-protobuf-gen when consuming `shared/gen/pb`; frontend-rust-wasm (plus rust-core) when the package has `crates/` + WASM engines; frontend-testing (plus testing) when writing automated tests.
+
+### Where these paths live
+
+- All trees below are relative to the **frontend package root**:
+  - Frontend-only repo: the package root is the **repo root**.
+  - Monorepo: the package root is **`frontend/`** (see monorepo architecture rules when that applies).
+- Do not nest an extra `frontend/` folder inside a frontend-only repo.
+
+### Code Style and Structure
+
+- Write concise, technical TypeScript code (see also code-craft).
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer compose-from-leaves for non-UI domain logic (code-craft Composition): containers/orchestrators sequence steps; put separable rules in single-job helpers under `services/` / `utils/` and unit-test those leaves (`testing.mdc` / `frontend-testing`).
+- Structure web app files with feature based folder structure, dividing features into smart self-contained components (widgets) where smart components use container presenter pattern.
+- Follow the below code structure principles:
+    - The source code will be structured as follows (at the frontend package root). Always use `apps/` shells — even when only web exists today (typically add mobile later; keep one folder shape across projects):
+
+```text
+./                               # frontend package root (repo root OR frontend/)
+├── src/                         # platform-independent code (most code goes here)
+│   ├── features/
+│   │   ├── feature-1-name/
+│   │   │   ├── widgets/
+│   │   │   │   ├── WidgetName/
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── container.tsx
+│   │   │   │   │   └── presenter.tsx
+│   │   │   │   └── ...
+│   │   │   ├── ui/
+│   │   │   ├── hooks/
+│   │   │   ├── services/
+│   │   │   ├── types/
+│   │   │   ├── utils/
+│   │   │   └── index.ts
+│   │   └── ...
+│   ├── pages/
+│   └── shared/
+│       ├── ui/
+│       ├── hooks/
+│       ├── services/
+│       ├── types/
+│       ├── utils/
+│       └── index.ts
+└── apps/                        # Thin platform shells (always; start with web)
+    ├── web/                     # Vite/React — web-specific config/infra (+ optional web-only src/)
+    ├── desktop/                 # Electron — when needed
+    └── mobile/                  # React Native / Expo — when needed
+```
+
+    - Presenters should only be imported by its widget's container and nowhere else
+    - Presenter component name should be Presenter and container should be Container and should be exported from index.ts with the name of the widget
+    - Prioritize colocation -> only move code further away from where it is used when a new location is introduced where we can reuse it
+    - There are 2 levels at which potentially re-usable code should reside: feature, shared
+    - Each level will have the following common structure:
+
+        ├── ui/         // contains a library of mostly dumb presentational components following atomic pattern, used only by code from this level
+        ├── hooks/      // contains hooks used by code at this level (complex standalone logic can  be refactored out of containers into here)
+        ├── services/   // contains the api services used by code at this level
+        ├── types/      // contains any types used by code at this level
+        └── utils/      // contains any utility functions used by code at this level
+
+    - As we add new features, If a new feature can re-use existing code from another feature we can move that code out to the `shared` folder.
+    - If new code we are adding needs similar code to what is already in the code base somewhere else, consider refactoring following code-craft (extract after real reuse; keep shared code free of call-site conditionals).
+    - Frontend `services/` folders are **API/client modules** (hook + repository) — not the same as backend `internal/services/` / `src/services/` (shared domain). Do not conflate the two.
+    - All `ui` folders  should be self contained ui libraries and will be structured as per the atomic pattern:
+
+        ├── ui/
+        │   ├── atoms/      // not made up of any other components defined in this code base e.g. a button
+        │   ├── molecules/  // made up of one or more atoms e.g. form group with label and button
+        │   ├── organisms/  // made up of atoms and molecules and may have simple state e.g. a form with state for storing user input although complex proccesses should not be done here and should be performed in callback functions passed in from parent components defined in widget level
+        │   └── templates/  // made up of any of the other iu components and arranges them in a specific view for the user - should be dumb, can be HOC for formatting only
+
+   - All `services` folders will be structured as follows:
+
+        ├── services/
+        │   ├── service-1-name/
+        │   │   ├── index.ts
+        │   │   ├── hook.ts             // provides hooks for the rest of the code base to use as an interface to the service
+        │   │   ├── repository.ts       // follows repository pattern (functions here should only be called by the hooks of this service)
+        │   └── ...
+    - If we do not have any code for a particular folder defined above it is acceptable to not include the folder (e.g. we do not use any services for a feature so that feature will not have a services folder).
+    - index.ts should be use to consolidate the exports of a folder.
+    - If any particular folder only needs a single file with one function it is acceptable to define it directly in the index fil - If more are added, at that point refactor into other files as necessary
+    - If central state management is deemed necessary at a feature level or shared level, we may add a store/ folder, as long as this interdependency is clearly documented
+    - All functions and components in the `shared` folders should be imported relative to root via a path alias `@` set up in the tsconfig.app.json
+    - Imports from and to within a feature can use regular relative imports without path aliasing
+    - Components in /pages should be dumb and not manage state, this should be done by the widgets imported into the pages
+- `apps/*` stay thin: bootstrapping, platform APIs, bundler config, native shells. Most UI/domain code lives in `src/`.
+- Prefer a single package manager workspace (npm/pnpm/yarn workspaces) when multiple apps share `src/`.
+- If a repo still has `web/` or `desktop/` beside `src/` (not under `apps/`), treat that as transitional and move toward `apps/` when touching structure.
+
+
+### Naming Conventions
+
+- Favor named exports for components and utilities.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoaded, hasError).
+
+
+### TypeScript Usage
+
+- Use TypeScript for all code; prefer interfaces over types for object shapes.
+- Avoid enums; use objects or maps instead.
+- Prefer strict TypeScript (`strict` in tsconfig) when setting up or touching compiler options.
+- Avoid `any`. Prefer real types from the codebase, generics, or generated clients.
+- When a value is truly untyped (e.g. external JSON before parse), prefer `unknown` and narrow with type guards / schema validation (e.g. valibot) — do not use `any` as a shortcut.
+- Avoid type assertions with `as` or non-null `!` unless unavoidable and localized; prefer narrowing and proper return types.
+- Prefer typed props, hook return types, and API DTOs over loosely typed objects.
+
+### Syntax and Formatting
+
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
+- Use declarative JSX, keeping JSX minimal and readable.
+- Pefer TypeScript without semi-colons at the end of the lines
+- Use arrow function syntax
+
+### UI and Styling
+
+- Use Tailwind for utility-based styling
+- Use a mobile-first approach
+- Prefer well-known icons with tooltips on hover over verbose headings
+
+
+### Best Practices
+- State management:
+    - Where possible and reasonable to do so, suggest saving state in the url as query strings - consider react router library's useSearchparams to do this
+    - Avoid introducing interdependency by managing state centrally -> pass by props, keeping nesting of components shallow where possible - only manage state centrally from shared folder that is needed everywhere in the app (e.g. api auth tokens, user info needed accross features etc.)
+    - Consider using a tool to share state between conponents when we need to pass a state as a prop through more than 3 levels of component hierarchy and into more than 2 or 3 places - in this case consider introducing state management mechanism in this order:
+        - Use context providers if we have no other context provider already overlapping with the components we want to share state for
+        - Use a Zustang library store, refactoring away from using any existing context providers overlapping with the components we want to share state with
+    - document clearly any global dependencies on these states to prevent problems when reusing this code elsewhere
+- Prefer one-job functions (see code-craft).

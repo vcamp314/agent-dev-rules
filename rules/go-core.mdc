@@ -1,0 +1,64 @@
+---
+description: idiomatic Go craft shared by HTTP and gRPC services
+alwaysApply: false
+---
+Apply these Go craft rules for backend services. Pair with code-craft and the relevant stack rule (backend-go-http or backend-go-grpc). Do not put transport trees or Echo/gRPC specifics here.
+
+### Language and tooling
+
+- Prefer clear, idiomatic Go. Pin the Go version in `go.mod` / Dockerfile.
+- Format with `gofmt` / `goimports`; lint with `golangci-lint` when those tools are set up for the service.
+- Prefer testify (`require` / `assert`) when adding tests.
+- Time: stdlib `time` is the default; introduce richer time helpers only if the service needs them.
+- Prefer UUID v7 for new persistent entity IDs (see code-craft).
+
+### Testing
+
+- Follow `testing.mdc` for E2E / L1 / L2 / unit level selection (unit-test leaves, not orchestrators).
+- Unit: testify; colocated `*_test.go` next to the code under test.
+- L2 HTTP: `net/http/httptest` (plus Echo context helpers as needed) for endpoint/handler contracts and edge cases.
+- L2 gRPC: in-process server or bufconn-style tests; assert status codes and response contracts.
+- L2 workers: invoke job entrypoints with controlled clocks/fakes for notifiers; assert outcomes, not internal call graphs.
+- Fake at integration boundaries for L2; do not unit-test orchestrators by mocking every collaborator.
+
+### Visibility and APIs
+
+- Methods and types are unexported by default; export only when another package needs them.
+- If both packages and internals need a method, wrap a private method with a public one.
+- Define interfaces where they are used, not where they are implemented. Keep interfaces small and single-responsibility.
+- Prefer small functions; if a file grows past ~300 lines, split by responsibility within the same package.
+- Always update aggregates through their aggregate root; do not mutate child entities from outside the root.
+
+### Types
+
+- Prefer concrete struct types for domain models and DTOs. Avoid `any` / empty `interface{}` in new code except at rare true boundaries (e.g. heterogeneous decode) — narrow immediately.
+- Prefer small, purpose-built interfaces over large “god” interfaces or passing `any` through layers.
+- Prefer typed request/response structs (and sqlc-generated row types when SQL is used) over map[string]any-style payloads.
+- Prefer compile-time checks (and golangci-lint) over runtime type assertions; when asserting, use `errors.As` / comma-ok forms and handle failure.
+
+### Naming
+
+- Service / repository type names: rely on package name for context (`Service` in package `schedule`, not `ScheduleService`, unless disambiguation is needed).
+- Defined errors: `Err` prefix (e.g. `ErrGoalNotFound`).
+- Conversion helpers: keep them close to the types they convert. Prefer clarity over a rigid naming ritual.
+
+### Errors and control flow
+
+- Prefer early returns and guard clauses; place the happy path last (see also code-craft).
+- Domain errors as package-level vars with `Err` prefix:
+
+```go
+var ErrUserNotFound = errors.New("user not found")
+```
+
+- Check with `errors.Is` / `errors.As`, not `==`.
+- Wrap with context using `%w`:
+
+```go
+return fmt.Errorf("failed to register user: %w", err)
+```
+
+### SQL (when the service uses a database)
+
+- Prefer pgx/v5 via `database/sql` for new PostgreSQL work (prefer over `lib/pq`).
+- Prefer **sqlc** over hand-written query Go or heavy ORMs; do not hand-edit sqlc output. (Layout lives in the stack rules under `internal/database/`.)

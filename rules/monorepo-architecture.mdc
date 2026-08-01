@@ -1,0 +1,132 @@
+---
+description: global monorepo layout and cross-cutting conventions (reusable across projects)
+alwaysApply: false
+---
+  You are working in a polyglot monorepo (frontend apps + backend services + shared API contracts). Prefer conventions that stay reusable across projects; do not invent project-specific service names or product details in this file. Pair with code-craft. For in-service code style, follow the language/stack rules (e.g. Go HTTP + go-core, Go gRPC + go-core, Python FastAPI, Rust HTTP + rust-core, Rust gRPC + rust-core, frontend) when those apply.
+
+### Top-level layout
+
+```text
+project-root/
+├── protobuf/                    # Shared .proto API contracts (when gRPC/Connect/protobuf is used)
+│   ├── buf.yaml                 # Preferred: buf for lint + generate
+│   └── buf.gen.yaml
+├── frontend/
+│   ├── src/                     # Platform-independent UI/domain code (most frontend code)
+│   │   ├── features/
+│   │   ├── shared/
+│   │   │   └── gen/
+│   │   │       └── pb/          # Optional: generated TS/clients from protobuf
+│   │   └── pages/
+│   └── apps/                    # Thin platform shells (always use apps/; even web-only starts as apps/web)
+│       ├── web/                 # Vite/React (or similar) — required starting point
+│       ├── desktop/             # Electron (or similar) — when needed
+│       └── mobile/              # React Native / Expo — when needed
+├── backend/
+│   ├── lib/                     # Optional shared backend libraries
+│   │   └── gen/
+│   │       └── pb/              # Preferred: generated protobuf/gRPC packages (Go, Rust, …)
+│   ├── aserver/                 # One folder per deployable service (placeholder names)
+│   │   ├── Dockerfile
+│   │   ├── Dockerfile.air       # Optional: hot-reload image for local compose
+│   │   └── ...                  # Service code (see stack-specific rules)
+│   ├── bserver/
+│   └── ...
+├── tools/                       # Optional: one-off CLIs, scripts, experiments
+├── docs/                        # Optional: project docs (not architecture rules)
+├── docker-compose.yml           # Local stack orchestration (repo root)
+├── docker-compose.dev.yml       # Optional: air/hot-reload overrides
+├── .env.example                 # Optional but recommended: documented env keys (no secrets)
+└── README.md
+```
+
+  - Service names (`aserver`, `bserver`, …) are placeholders. Real repos rename folders to domain names.
+  - Example common service *roles* (name them to match the domain when creating them):
+    - `apiserver` — primary HTTP API
+    - `chatserver` / realtime service — streaming/gRPC fan-out when needed
+    - worker / bridge / recognition-style services — only when the product needs them
+  - Always use `frontend/apps/<platform>` for shells — even when only web exists (`apps/web`). If a repo still has `frontend/web` beside `frontend/src`, treat that as transitional and move toward `apps/` when touching structure.
+  - Do not put local compose under `backend/deployment/` by default. Root compose is the monorepo entrypoint even when frontends run via npm/local tooling rather than containers.
+  - `backend/deployment/` (or similar) may hold **deploy-only** artifacts later (task defs, prod overlays) — not the primary local compose file.
+
+### Protobuf and codegen
+
+  - Source of truth for RPC/shared messages: `protobuf/**/*.proto`.
+  - Prefer [buf](https://buf.build) (`buf generate`, `buf lint`; optional `buf breaking` in CI).
+  - Generate into **shared language packages**, not copies inside every service:
+    - Go (preferred): `backend/lib/gen/pb/...` consumed as a Go module (replace/version as needed)
+    - Rust (preferred): `backend/lib/gen/pb/...` (or a dedicated crate under `backend/lib/`) consumed as a path/workspace dependency
+    - TypeScript (preferred): `frontend/src/shared/gen/pb/...` consumed by all frontend apps
+  - Per-app or per-service `gen/pb/` folders are acceptable only when a single consumer truly owns that contract; prefer shared gen once two consumers exist.
+  - Never hand-edit generated code; regenerate after proto changes.
+  - Backend services must not import another service’s private internals. Share contracts via protobuf/generated libs or explicit public modules under `backend/lib/`.
+
+### Backend services
+
+  - One deployable unit per `backend/<service>/` with its own module manifest (`go.mod`, `Cargo.toml`, `pyproject`/`requirements`, etc.) and `Dockerfile`.
+  - Keep business logic inside the service. `backend/lib/` is for generated contracts and small truly shared libraries — not a dumping ground for feature code.
+  - Allowed stacks in the same monorepo (pick per service): Go HTTP, Go gRPC, Python FastAPI, Rust HTTP, Rust gRPC, etc. Apply the matching stack rules for that service’s internals.
+  - Optional `Dockerfile.air` when you want hot-reload containers; otherwise run the service with the language toolchain locally against compose infra.
+
+### Frontend
+
+  - Frontend package root in a monorepo is `frontend/` (see frontend-core for `src/` + `apps/` layout and in-app patterns).
+  - Most UI/domain code lives in `frontend/src` (features, shared, pages).
+  - `apps/*` stay thin: bootstrapping, platform APIs, bundler config, native shells. Always include `apps/web` at minimum.
+  - Apps may run with npm/pnpm/yarn (dev servers) while backend infra runs in Compose — that split is expected.
+  - Prefer a single package manager workspace (npm/pnpm/yarn workspaces) when multiple apps share `frontend/src`.
+  - Attach frontend-http-api when UI calls HTTP APIs; attach frontend-protobuf-gen when UI consumes `shared/gen/pb`; attach frontend-rust-wasm (+ rust-core) when UI includes `crates/` WASM engines.
+
+### Local orchestration (Docker Compose)
+
+  - Primary file: **repo-root** `docker-compose.yml`.
+  - Compose brings up **shared infra and containerized services** needed to develop the monorepo. It does not need to containerize every frontend app.
+  - Typical optional infra services (add only when used):
+    - PostgreSQL (or other primary DB)
+    - migrate job/image for SQL migrations
+    - NATS / Redis / other brokers or caches
+    - observability sidecars (OTel collector, etc.) when adopted
+  - Wire service env via Compose + `.env` / `.env.example`. Never commit secrets.
+  - Document the happy path in the root README: e.g. `docker compose up --build` for infra/services, plus the frontend package scripts for UI apps.
+
+### Test environments
+
+  - E2E (Playwright — see `testing.mdc` / `frontend-testing`) runs against **real** first-party backends in a dedicated test stack — not mocks of in-repo services.
+  - Use a dedicated test database (or equivalent store), separate from day-to-day developer data. Seed and/or reset per suite or run so mutations stay isolated to the test scope.
+  - Document how to bring up the test stack (compose profile, env files, seed command) **and how to run tests locally** (unit/L2/E2E commands) in the root README — no product-specific ports required in these rules.
+  - CI: follow `ci-github` (GitHub Flow + Actions). E2E uses the test environment above; keep L2/unit in `ci.yml` path-filtered jobs as appropriate.
+
+### Cross-cutting conventions
+
+  - Secrets: `.env` locally; provide `.env.example` with empty/placeholder values. No credentials in git.
+  - IDs and HTTP routes: prefer UUID v7 and `/<audience>/v1/...` (see code-craft and http-api-contract).
+  - Generated artifacts policy: either commit generated protobuf clients **or** generate in CI — pick one per repo and stay consistent.
+  - Ignore build outputs, local media, vendor dumps, and machine-specific paths in `.gitignore`.
+  - Optional root task runner (Just/Make) for common commands (`buf generate`, compose, lint) — useful, not mandatory.
+  - Follow `ci-github` for GitHub Actions under GitHub Flow (lint, unit/L2, selective E2E, buf when protobuf is used).
+
+### Rule presets (which `.mdc` files to attach)
+
+  Prefer attaching by project shape — do not dump every rule into every repo.
+
+  **Frontend-only** (no backend in-repo):
+  - Always: `code-craft`, `frontend-core`
+  - When calling HTTP APIs: `http-api-contract`, `frontend-http-api`
+  - When consuming protobuf clients: `frontend-protobuf-gen`
+  - When using Rust WASM engines: `rust-core`, `frontend-rust-wasm`
+  - When writing automated tests: `testing`, `frontend-testing`
+  - When adding GitHub Actions / CI: `ci-github`
+
+  **Full monorepo** (this layout):
+  - Always: `monorepo-architecture`, `code-craft`
+  - Frontend: `frontend-core` (+ `frontend-http-api` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `rust-core` / `frontend-testing` + `testing` as needed)
+  - HTTP backends: `http-api-contract` + stack rule (`backend-go-http-architecture-patterns` + `go-core`, `backend-python-fastapi-architecture-patterns`, or `backend-rust-http-architecture-patterns` + `rust-core`)
+  - gRPC backends: stack rule (`backend-go-grpc-architecture-patterns` + `go-core`, or `backend-rust-grpc-architecture-patterns` + `rust-core`) — not http-api-contract
+  - Cross-domain orchestration (rare): `backend-usecases`
+  - Automated tests: always include `testing`; frontend UI tests also `frontend-testing`; monorepo E2E also this file’s test-environment guidance
+  - CI / GitHub Actions: `ci-github`
+
+### What this file is not
+
+  - Not a place for product-specific service lists, ports, or vendor choices beyond optional examples.
+  - Not a replacement for stack-specific architecture rules (HTTP/gRPC/Python/Rust/frontend-core and related frontend-* / rust-* / go-core rules). Those own folder layouts *inside* a service or app.

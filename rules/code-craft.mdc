@@ -1,0 +1,38 @@
+---
+description: language-agnostic code craft (DRY, comments, early returns, strict typing at boundaries)
+alwaysApply: false
+---
+Apply these craft rules for frontend and backend work in any language. Pair with stack-specific architecture rules.
+
+### Craft
+
+- Write concise, technical code. Prefer iteration and modularization over duplication.
+- Add comments only for anything that is not straightforward or self-explanatory.
+- Do not add comments or documentation that reads the same as the code it describes.
+- Prefer functions/components that do one job — better two focused units than one with conditionals that serve different purposes.
+- Prefer early returns and guard clauses for error/precondition handling; place the happy path last; avoid unnecessary else.
+- Prefer clear, small functions; avoid deep nesting.
+
+### Composition
+
+- Multi-step workflows (feature service methods, usecases, workers, containers) **may** exist as orchestrators: they sequence steps and handle workflow-level errors only.
+- Each step with its own rule, IO, or transform belongs in a **single-job function** (same package/module is fine). Prefer extract-until-one-job over a long procedural body.
+- Recurse: if a step still does multiple jobs, split again until leaves are single-purpose.
+- Do not invent speculative layer folders for this — flat helpers next to the orchestrator are enough until real reuse appears (see Shared code).
+- Unit tests target those leaves; orchestrator behavior is covered by higher-level tests (see `testing.mdc`).
+
+### Shared code
+
+- Extract shared code only after real reuse across call sites — do not pre-create shared packages for speculative reuse.
+- When extracting, keep the shared portion free of call-site-specific conditionals; handle differences at each call site.
+
+### Types and contracts
+
+- Prefer explicit types at API and module boundaries (request/response DTOs, public functions, shared domain models). Do not rely on implicit/untyped payloads when the language supports typing.
+- Validate and parse untrusted or external input at the boundary into typed domain shapes; do not leak raw untyped data deep into the app.
+- Prefer the language’s typed constructs over escape hatches that erase type information. Language-specific escape hatches and checkers live in go-core, rust-core, frontend-core, and stack rules.
+- Prefer generated or schema-backed types for SQL, protobuf, and OpenAPI/JSON contracts when those tools are in use — do not hand-edit generated type output.
+
+### Identifiers
+
+- Prefer UUID v7 (uuid7) for new persistent entity identifiers (DB primary keys and public IDs) unless an existing contract still uses another scheme (migrate toward uuid7 for new work).

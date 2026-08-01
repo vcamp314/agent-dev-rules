@@ -1,0 +1,22 @@
+---
+description: frontend HTTP API client patterns (react-query, errors/toasts)
+alwaysApply: false
+---
+Use these rules when the frontend talks to an HTTP API (in-repo backend or remote). Pair with frontend-core, code-craft, and http-api-contract.
+
+### API paths and IDs
+
+- Follow http-api-contract for audience + versioned paths and UUID v7 entity IDs in client types/payloads.
+
+### Remote state and services
+
+- Frontend `services/` here means API/client modules (hook + repository) — not backend shared-domain `services/`.
+- Use libraries such as (tanstack) react-query to manage remote state and ensure remotely fetched data is properly invalidated on relevant user actions and data is refetched only when necessary (such as after a user updates data)
+- have the hook in the services's hook.ts return the isLoading state and display some loading animation for components that depend on that service's data (default to a grey skeleton scaffold animatd with tailwind's animate-pulse)
+- Use libraries such as valibot for validating external data, defining schemas in the types/ folders
+
+### Error handling (when a backend is involved)
+
+- Provide a consistent way to handle errors from API's/external services universally in the `shared` folder:
+    - non-intrusive Toast UI with icons indicated success or error that fade shortly after appearing
+    - toast provider with context to add to a queue of toasts to be displayed sequentially triggered on errors that are not first try 401 (should attempt refreshing token and try again once before alerting user)
