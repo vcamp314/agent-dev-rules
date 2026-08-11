@@ -21,66 +21,67 @@ Confirm with the user:
 1. **Shape:** frontend-only vs single backend service vs full monorepo (`frontend/` + `backend/`).
 2. **Backend stacks present** (if any): Go HTTP (Echo), Go gRPC, Python FastAPI, Rust HTTP (Axum), Rust gRPC (Tonic).
 3. **Frontend extras** (if React): HTTP API client? protobuf/TS clients? Rust WASM (`crates/`)?
-4. **Testing / CI:** automated tests now? GitHub Actions now?
+4. **CI:** GitHub Actions now? (Testing is **always** enabled for greenfield — see Scaffold.)
 5. **Rare:** cross-domain `backend-usecases`?
 
-Then emit the **exact file list** to install (filenames below). Always also install workflow rules:
+Then emit the **exact file list** to install (filenames below). Always also install workflow + testing rules:
 
 - `feature-workflow.mdc`
 - `multi-critic-protocol.mdc`
+- `documentation.mdc`
+- `testing.mdc`
+- `frontend-testing.mdc` when the project includes React
 
 ### Preset: Frontend-only (React)
 
 | Always | Add when… |
 |--------|-----------|
-| `code-craft`, `frontend-core` | — |
+| `code-craft`, `frontend-core`, `testing`, `frontend-testing` | — |
 | + `http-api-contract`, `frontend-http-api` | App calls an HTTP API |
 | + `frontend-protobuf-gen` | Generated protobuf/TS clients |
 | + `rust-core`, `frontend-rust-wasm` | `crates/` + WASM |
-| + `testing`, `frontend-testing` | Automated tests |
 | + `ci-github` | GitHub Actions |
 
 ### Preset: Single HTTP API (no monorepo)
 
-Always: `code-craft`, `http-api-contract`. Pick one stack:
+Always: `code-craft`, `http-api-contract`, `testing`. Pick one stack:
 
 - **Go:** + `go-core`, `backend-go-http-architecture-patterns`
 - **Python:** + `backend-python-fastapi-architecture-patterns`
 - **Rust:** + `rust-core`, `backend-rust-http-architecture-patterns`
 
-Optional: `testing`, `ci-github`, `backend-usecases` (rare cross-domain orchestration).
+Optional: `ci-github`, `backend-usecases` (rare cross-domain orchestration).
 
 ### Preset: Single gRPC service (no monorepo)
 
 Do **not** include `http-api-contract`.
 
-- **Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`
-- **Rust:** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`
+- **Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`, `testing`
+- **Rust:** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`, `testing`
 
-Optional: `testing`, `ci-github`.
+Optional: `ci-github`.
 
 ### Preset: Full monorepo
 
-Always: `monorepo-architecture`, `code-craft`.
+Always: `monorepo-architecture`, `code-craft`, `testing`.
 
 Then add per surface actually present:
 
 | Surface | Include |
 |---------|---------|
-| React | `frontend-core` (+ `frontend-http-api` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `rust-core` as needed) |
+| React | `frontend-core`, `frontend-testing` (+ `frontend-http-api` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `rust-core` as needed) |
 | Go HTTP | `http-api-contract`, `go-core`, `backend-go-http-architecture-patterns` |
 | Go gRPC | `go-core`, `backend-go-grpc-architecture-patterns` |
 | Python FastAPI | `http-api-contract`, `backend-python-fastapi-architecture-patterns` |
 | Rust HTTP | `http-api-contract`, `rust-core`, `backend-rust-http-architecture-patterns` |
 | Rust gRPC | `rust-core`, `backend-rust-grpc-architecture-patterns` |
 | Cross-domain usecases | `backend-usecases` |
-| Automated tests | `testing` (+ `frontend-testing` for UI/E2E/L1) |
 | CI | `ci-github` |
 
 ## Fetch and install
 
 1. Download the listed `.mdc` files from `https://github.com/vcamp314/agent-dev-rules` into the project’s `.cursor/rules/` (clone, sparse-checkout, or raw GitHub download). Prefer the repo’s `rules/` directory.
-2. Also copy `feature-workflow.mdc` and `multi-critic-protocol.mdc` into `.cursor/rules/`.
+2. Also copy `feature-workflow.mdc`, `multi-critic-protocol.mdc`, `documentation.mdc`, and `testing.mdc` into `.cursor/rules/` (+ `frontend-testing.mdc` when React is present).
 3. If project (or user) agents are missing, copy `agents/*.md` from agent-dev-rules into `.cursor/agents/` and/or remind the user to sync to `~/.cursor/agents/`.
 4. Do **not** invent private product names; use placeholder domain names from the stack rules.
 
@@ -91,8 +92,18 @@ Using the installed stack rules’ layout trees:
 1. Create a blank **runnable** app skeleton (minimal hello-path).
 2. Initialize git + `main` if missing; add a sensible stack `.gitignore` (do **not** gitignore the user’s unrelated local scripts just to silence `git status`).
 3. Pin package manager / Go / Rust toolchain versions appropriately for the scaffold.
-4. Document local test commands in the project README (`testing` / stack scripts).
-5. If the user asked for CI, scaffold `.github/workflows` per `ci-github` (lint/unit/L2; E2E triggers as that rule specifies). No deploy stubs unless the user asked.
+4. **Testing from day one** (required — follow `testing.mdc`):
+   - Wire the stack’s default unit-test runner (e.g. Jest/Vitest + RTL for frontend, `go test`, `pytest`, `cargo test`).
+   - Add **at least one minimal passing test** (trivial assert / smoke is fine — the point is a green command ready to extend).
+   - Run that command once; confirm it passes before considering scaffold done.
+   - Put the exact command on the root README quickstart.
+5. **Documentation** (required — follow `documentation.mdc`):
+   - Root `README.md`: short landing page (what/why, quickstart one-liners including the test command above, links into `docs/`).
+   - Root `docs/architecture.md`: chosen project shape, stacks, and layout.
+   - Root `docs/decisions.md` (or `docs/decisions/<topic>.md`): greenfield deliberation — alternatives considered and why rejected, with **Revisit if**.
+   - Optional `docs/testing.md` when test-stack notes exceed README bullets; keep run commands discoverable from the README.
+   - Do not create feature-local READMEs until features exist.
+6. If the user asked for CI, scaffold `.github/workflows` per `ci-github` (lint/unit/L2; E2E triggers as that rule specifies). No deploy stubs unless the user asked.
 
 ## Refresh later
 

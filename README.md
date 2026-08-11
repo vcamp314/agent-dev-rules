@@ -7,6 +7,7 @@ Canonical repo: https://github.com/vcamp314/agent-dev-rules
 ```text
 agent-dev-rules/
 ├── README.md
+├── docs/            # architecture + design decisions (this repo)
 ├── rules/           # architecture + bootstrap + feature workflow
 ├── agents/          # multi-critic subagent prompts
 └── commands/        # Cursor slash commands
@@ -16,6 +17,11 @@ Files ship as `.mdc` (Markdown + optional YAML frontmatter) or `.md` for agents/
 
 **Do not load every rule.** Include only the [preset](#presets-what-to-include) that matches your project shape.
 
+## Further reading
+
+- [Architecture](docs/architecture.md) — repo layout, modules, install boundaries
+- [Design decisions](docs/decisions.md) — why documentation, perfect commit, day-one tests, presets
+
 ---
 
 ## Cursor workflow (install)
@@ -23,9 +29,9 @@ Files ship as `.mdc` (Markdown + optional YAML frontmatter) or `.md` for agents/
 ```text
 Plan /new-project  →  fetch preset into .cursor/rules/
        ↓
- /feature-start    →  git branch → requirements → TDD → critics → manual QA
+ /feature-start    →  git branch → requirements → docs → TDD → critics → manual QA
        ↓
- /commit-push      →  stage thread files only → commit (why) → push
+ /commit-push      →  perfect commit (code+tests+docs+issue) → push
        ↓
  You open PR on GitHub
 ```
@@ -36,7 +42,7 @@ Plan /new-project  →  fetch preset into .cursor/rules/
 |----------|-----------------|---------------------|
 | Bootstrap / rule selection | **User Rules** (Customize → Rules) — paste `rules/bootstrap-select-rules.mdc` body | `rules/bootstrap-select-rules.mdc` |
 | Architecture stack rules | Project `.cursor/rules/*.mdc` | `rules/*.mdc` (preset subset) |
-| Feature + multi-critic protocols | Project `.cursor/rules/` | `feature-workflow.mdc`, `multi-critic-protocol.mdc` |
+| Feature + docs + multi-critic protocols | Project `.cursor/rules/` | `feature-workflow.mdc`, `documentation.mdc`, `multi-critic-protocol.mdc` |
 | Critic subagents | Prefer `~/.cursor/agents/*.md` (all projects) | `agents/*.md` |
 | Slash commands | Prefer `~/.cursor/commands/*.md` | `commands/*.md` |
 
@@ -55,7 +61,7 @@ Do **not** put the full architecture pack in User Rules (context bloat / wrong-s
    mkdir -p ~/.cursor/agents
    cp agents/*.md ~/.cursor/agents/
    ```
-4. **Per project:** run `/new-project` (or follow bootstrap) so the agent fetches the preset `.mdc` files into `.cursor/rules/`, including `feature-workflow.mdc` and `multi-critic-protocol.mdc`.
+4. **Per project:** run `/new-project` (or follow bootstrap) so the agent fetches the preset `.mdc` files into `.cursor/rules/`, including `feature-workflow.mdc`, `documentation.mdc`, `multi-critic-protocol.mdc`, and `testing.mdc`.
 
 Alternatively use Cursor **Add Rule → Remote Rule (GitHub)** for this repo once per machine/team; bootstrap still tells the agent which subset to use.
 
@@ -63,19 +69,20 @@ Alternatively use Cursor **Add Rule → Remote Rule (GitHub)** for this repo onc
 
 | Command | Purpose |
 |---------|---------|
-| `/new-project` | Plan preset → fetch rules → scaffold |
-| `/feature-start` | Full feature/fix loop (requirements, TDD, multi-critic, QA handoff) |
-| `/commit-push` | Stage only this thread’s files; why-focused commit; push |
+| `/new-project` | Plan preset → fetch rules → scaffold (incl. day-1 passing test) → root README + `docs/` |
+| `/feature-start` | Full feature/fix loop (requirements, design docs, TDD, multi-critic, QA handoff) |
+| `/commit-push` | Perfect commit (code+tests+docs+issue) or `--simple` bypass; push |
 | `/sync-rules` | Refresh rules/agents/commands from this repo |
 
 ### Feature loop (summary)
 
 1. Git prep (untracked local files allowed; stop only on real conflicts).
 2. Requirements in two groups: **User-specified** vs **Inferred** (infer only sensible gaps); confirm before tests.
-3. Red → green TDD per `testing.mdc`.
-4. Verify: max **3** fix-and-rerun cycles, then human intervention.
-5. Multi-critic in parallel; max **3** blocker fix cycles.
-6. Manual QA; commit only with `/commit-push`.
+3. Design documentation per `documentation.mdc` (colocated feature README/`docs/`; system-wide root or service `docs/`; decisions + rejected alternatives). Fixes update docs for modified behavior.
+4. Red → green TDD per `testing.mdc`.
+5. Verify: max **3** fix-and-rerun cycles, then human intervention.
+6. Multi-critic in parallel; max **3** blocker fix cycles.
+7. Manual QA; list docs touched; commit only with `/commit-push` (issue link; `--simple` for trivial).
 
 ---
 
@@ -102,7 +109,7 @@ code-craft          ← language-agnostic craft (always useful)
 | Repo layout | `monorepo-architecture` | Top-level `frontend/`, `backend/`, `protobuf/`, compose, test env |
 | Frontend | `frontend-core`, `frontend-http-api`, `frontend-protobuf-gen`, `frontend-rust-wasm`, `frontend-testing` | React layout + optional API / protobuf / WASM / Playwright+Jest |
 | Backend stacks | `backend-go-http-…`, `backend-go-grpc-…`, `backend-python-fastapi-…`, `backend-rust-http-…`, `backend-rust-grpc-…` | In-service folder layout + framework choices |
-| Workflow | `bootstrap-select-rules`, `feature-workflow`, `multi-critic-protocol` | Greenfield install + feature delivery + critics |
+| Workflow | `bootstrap-select-rules`, `feature-workflow`, `documentation`, `multi-critic-protocol` | Greenfield install + feature delivery + docs + critics |
 
 **Backend vocabulary (aligned across Go / Python / Rust HTTP & gRPC):** `features/`, shared `services/` (after reuse), `integrations/`, `database/`, `common/`, optional `usecases/`.
 
@@ -124,40 +131,39 @@ Only include modules relevant to the work in progress so context stays small and
 
 | Always | Add when… |
 |--------|-----------|
-| `code-craft`, `frontend-core` | — |
+| `code-craft`, `frontend-core`, `testing`, `frontend-testing` | — |
 | + `http-api-contract`, `frontend-http-api` | App calls an HTTP API |
 | + `frontend-protobuf-gen` | App uses generated protobuf/TS clients |
 | + `rust-core`, `frontend-rust-wasm` | App has `crates/` + WASM engines |
-| + `testing`, `frontend-testing` | Writing automated tests |
 | + `ci-github` | Adding GitHub Actions / CI |
 
-Also install for Cursor workflow projects: `feature-workflow`, `multi-critic-protocol`.
+Also install for Cursor workflow projects: `feature-workflow`, `documentation`, `multi-critic-protocol`.
 
 ### 2. Single HTTP API service (no monorepo)
 
-Pick one stack. Always include `code-craft` + `http-api-contract`. Add `testing` when writing tests; add `ci-github` when adding Actions.
+Pick one stack. Always include `code-craft` + `http-api-contract` + `testing`. Add `ci-github` when adding Actions.
 
-**Go (Echo):** `code-craft`, `go-core`, `http-api-contract`, `backend-go-http-architecture-patterns`
+**Go (Echo):** `code-craft`, `go-core`, `http-api-contract`, `backend-go-http-architecture-patterns`, `testing`
 
-**Python (FastAPI):** `code-craft`, `http-api-contract`, `backend-python-fastapi-architecture-patterns`
+**Python (FastAPI):** `code-craft`, `http-api-contract`, `backend-python-fastapi-architecture-patterns`, `testing`
 
-**Rust (Axum):** `code-craft`, `rust-core`, `http-api-contract`, `backend-rust-http-architecture-patterns`
+**Rust (Axum):** `code-craft`, `rust-core`, `http-api-contract`, `backend-rust-http-architecture-patterns`, `testing`
 
 Add `backend-usecases` only for rare cross-domain orchestration APIs.
 
 ### 3. Single gRPC service (no monorepo)
 
-Do **not** include `http-api-contract`. Add `testing` / `ci-github` as needed.
+Do **not** include `http-api-contract`. Always include `testing`. Add `ci-github` as needed.
 
-**Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`
+**Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`, `testing`
 
-**Rust (Tonic):** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`
+**Rust (Tonic):** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`, `testing`
 
 ### 4. Full monorepo (frontend + backends)
 
-**Always:** `monorepo-architecture`, `code-craft`.
+**Always:** `monorepo-architecture`, `code-craft`, `testing`.
 
-Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rust HTTP / Rust gRPC / usecases / testing / ci) — see the tables in `rules/bootstrap-select-rules.mdc` for the full matrix.
+Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rust HTTP / Rust gRPC / usecases / ci) — see the tables in `rules/bootstrap-select-rules.mdc` for the full matrix. React also gets `frontend-testing`.
 
 ---
 
@@ -169,7 +175,7 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 | `go-core.mdc` | Any Go backend work |
 | `rust-core.mdc` | Any Rust work (HTTP, gRPC, or WASM) |
 | `http-api-contract.mdc` | Defining or calling HTTP APIs |
-| `testing.mdc` | Writing or changing automated tests (strategy) |
+| `testing.mdc` | Testing strategy; greenfield day-one harness + minimal passing test |
 | `ci-github.mdc` | GitHub Flow + Actions |
 | `backend-usecases.mdc` | Rare cross-feature orchestration modules |
 | `monorepo-architecture.mdc` | Repo has both `frontend/` and `backend/` |
@@ -184,7 +190,8 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 | `backend-rust-http-architecture-patterns.mdc` | Rust Axum HTTP service layout |
 | `backend-rust-grpc-architecture-patterns.mdc` | Rust Tonic gRPC service layout |
 | `bootstrap-select-rules.mdc` | Greenfield / preset selection (global User Rule) |
-| `feature-workflow.mdc` | Feature/fix TDD delivery protocol |
+| `documentation.mdc` | README + colocated/`docs/` placement; design decisions; keep docs in sync |
+| `feature-workflow.mdc` | Feature/fix TDD delivery protocol (includes design docs step) |
 | `multi-critic-protocol.mdc` | Parallel critic orchestration after green tests |
 
 **Agents:** `functional-verifier`, `security-auditor`, `qa-edgecase-verifier`, `architecture-linter`, `test-coverage-auditor`
@@ -194,6 +201,10 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 ---
 
 ## Design notes
+
+See [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/decisions.md) for layout rationale and recorded decisions (documentation protocol, perfect commit, day-one tests, modular presets).
+
+Short reminders:
 
 - **Split by include boundary**, not by dumping conditionals into one mega-file.
 - **Trees live in stack files**; language craft lives in `*-core` / `code-craft`.
@@ -208,3 +219,4 @@ Keep new rules:
 2. Free of private product/service names.
 3. Consistent with existing `features` / `services` / `integrations` vocabulary where they apply.
 4. Tool-agnostic body text in architecture rules (Cursor install lives in this README + workflow files).
+5. Update [docs/decisions.md](docs/decisions.md) (or a linked topic file) when changing workflow/architecture choices.

@@ -53,7 +53,7 @@ Optional later (not required scaffolding): `schedule` nightly E2E for monorepos.
 
 - Unit/L2 live in `ci.yml`; E2E/L1 live in `e2e.yml` (see `testing.mdc`).
 - Monorepo E2E runs against the dedicated test stack and isolated seeded data (`monorepo-architecture` Test environments) — not against day-to-day developer data.
-- CI secrets/vars via GitHub Actions; never commit `.env`. Document required secret **names** in the project README, not values.
+- CI secrets/vars via GitHub Actions; never commit `.env`. Document required secret **names** so they are discoverable from the project README (or linked `docs/`), not values.
 - Fail the job on test or lint failure; configure PR required checks for `ci.yml` (and E2E when it is part of the merge gate for that project).
 
 ### Presets

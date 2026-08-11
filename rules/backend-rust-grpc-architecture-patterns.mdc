@@ -214,7 +214,7 @@ docker-compose.dev.yml               # Optional
   - Tune message buffer sizes and subscription handlers for streaming/fan-out workloads when applicable.
   - Add OpenTelemetry / metrics when operational needs justify them.
   - Prefer multi-stage Docker builds; distroless/nonroot is a good production target when hardening images.
-  - Expose ports clearly (native gRPC vs any gateway) and document them in the service README.
+  - Expose ports clearly (native gRPC vs any gateway) and document them so they are discoverable from the service README (per `documentation.mdc`).
 
   Key Conventions
   1. Organize by feature; keep layered responsibilities in flat files (`endpoints`, `service`, optional `repository`, `error`, `config`).

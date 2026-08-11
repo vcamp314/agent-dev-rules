@@ -1,0 +1,99 @@
+---
+description: systematic project documentation — README landing pages, colocated feature docs, system-wide docs/, design decisions, keep docs in sync with code
+alwaysApply: false
+---
+# Documentation protocol
+
+Apply whenever scaffolding a project (`/new-project`), implementing or fixing a feature (`/feature-start` / `feature-workflow`), or changing behavior that existing docs describe. Pair with `feature-workflow` and `monorepo-architecture` (layout). Do not invent product-specific ports or service names here.
+
+## Goals
+
+- Preserve **why** decisions were made (options considered, why rejected) so future agents/humans do not re-litigate discarded paths unless circumstances match **Revisit if**.
+- Keep docs **discoverable** and **alive**: same change that alters behavior updates the matching docs (or deletes obsolete sections).
+
+## Placement (systematic)
+
+| Scope | Where | Contents |
+|-------|--------|----------|
+| Landing page (any level) | `README.md` at that folder | Short summary + quickstart/index links only |
+| Feature / module owned behavior | Colocated under the **ownership** folder | Feature `README.md`; optional `<feature>/docs/` for depth |
+| Cross-feature / service / repo | Repo-root `docs/`, or `backend/<service>/docs/` when the concern is one service in a monorepo | Architecture, system-wide decisions, longer setup/testing notes |
+
+**Ownership folders** (examples — follow the stack layout in use):
+
+- Frontend: `frontend/src/features/<name>/`
+- Go / Rust: `internal/features/<name>/` (or the feature package that owns the domain)
+- FastAPI: the functionality module that owns the domain (API or `internal_services` package — not every tiny file)
+
+**Do not** add READMEs under `shared/`, `common/`, generated `gen/`, or every widget/leaf. One doc set per ownership boundary.
+
+**Split by who needs the context**, not by which slash command ran: a feature change may still write root/`docs/` when the decision is cross-cutting.
+
+## README + `docs/` pattern (all levels)
+
+Same pattern for **repo root**, **service**, and **feature** folders:
+
+1. **`README.md`** — short landing page (GitHub renders subdirectory READMEs when browsing that folder):
+   - Purpose (few lines)
+   - Behavior / boundaries or quickstart (bullets / commands)
+   - Optional short touch points
+   - **Further reading** — links into sibling `docs/` when present
+2. **`docs/`** — only when depth does not fit the landing page:
+   - Create lazily (no empty `docs/` scaffolds)
+   - Promote out of README when a section would exceed ~one screen or there is more than one distinct design decision
+   - Typical files: `decisions.md` (or `decisions/<topic>.md`), optional `how-it-works.md`, `testing.md`, `migration.md`
+
+“Document X in the README” in other rules means **discoverable from the README**: brief commands or bullets on the README, details may live in `docs/` and be linked.
+
+## When to write design decisions
+
+Capture a decision when at least one applies:
+
+- Multiple viable approaches were debated (Ask/Plan or during implementation)
+- Choice is hard to reverse (API shape, data model, sync vs async, ownership boundaries)
+- A path was rejected that a future agent would likely retry
+
+Skip for trivial/mechanical changes (rename, typo, pure formatting) with no design fork.
+
+### Decision record template
+
+Use in `docs/decisions.md` (system or feature) or a short `## Design decisions` section in README when still small enough:
+
+```markdown
+### <Decision title>
+- **Context:** …
+- **Chosen:** …
+- **Alternatives rejected:** … (why each)
+- **Consequences:** …
+- **Revisit if:** …
+```
+
+Write decisions, not chat transcripts. Prefer edit-in-place over “Historical” cruft; delete obsolete sections when no longer true.
+
+## Feature-local shape
+
+```text
+<feature-ownership>/
+├── README.md                 # summary + links
+└── docs/                     # omit until needed
+    └── decisions.md
+```
+
+## System-wide shape
+
+```text
+project-root/
+├── README.md                 # what / quickstart / links into docs/
+└── docs/
+    ├── architecture.md       # layout + stack choices (from greenfield)
+    ├── decisions.md          # or decisions/<topic>.md
+    └── testing.md            # optional: longer test-stack notes
+```
+
+Single-service repos without `backend/<service>/` use root `docs/`. Monorepo service-only concerns may use `backend/<service>/README.md` + `backend/<service>/docs/`.
+
+## Keep docs in sync
+
+- **Same change / same PR:** update or remove docs when behavior or a prior decision changes.
+- Prefer updating the existing decision over adding a contradictory new one; adjust **Revisit if** / **Chosen** in place.
+- Hand off and reviewers should treat missing doc updates for behavioral changes as incomplete work.

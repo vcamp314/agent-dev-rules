@@ -2,12 +2,20 @@
 description: automated testing strategy (E2E, integration L1/L2, unit — what to test and how)
 alwaysApply: false
 ---
-Apply when writing or changing automated tests. Pair with stack tooling (`frontend-testing`, go-core / rust-core / backend stack rules) and `monorepo-architecture` when E2E hits in-repo backends. CI wiring for when tests run: `ci-github`. Production code should follow code-craft Composition so unit-testable leaves exist.
+Apply when writing or changing automated tests. Pair with stack tooling (`frontend-testing`, go-core / rust-core / backend stack rules) and `monorepo-architecture` when E2E hits in-repo backends. CI wiring for when tests run: `ci-github`. Production code should follow code-craft Composition so unit-testable leaves exist. Greenfield always installs this file (see `bootstrap-select-rules`).
+
+### Greenfield (day one)
+
+- Every new project scaffold **must** include a working unit-test runner for each stack present and **at least one minimal passing test**.
+- Run the documented test command once during scaffold and confirm it is green before calling bootstrap done.
+- A trivial smoke test is enough at birth (e.g. `assert 1 + 1 == 2`, `expect(true).toBe(true)`, `TestTrue`, empty `#[test] fn smoke()`). The goal is a harness ready to extend — not full coverage on day one.
+- E2E/Playwright and rich L2 suites may come later; do not block greenfield on them. When React is present, still install `frontend-testing` and prefer a minimal unit (Jest/Vitest) green test on day one; add Playwright when E2E work starts.
+- Document the exact local test command on the root README (see `documentation.mdc`).
 
 ### Local runs
 
 - Developers must be able to run the same test levels **locally from the terminal** (not only in CI): unit, L2, and E2E/L1 as applicable.
-- Prefer documented package scripts or standard toolchain commands (e.g. `npm test`, `npx playwright test`, `go test ./...`, `pytest`, `cargo test`) and document them in the project README.
+- Prefer documented package scripts or standard toolchain commands (e.g. `npm test`, `npx playwright test`, `go test ./...`, `pytest`, `cargo test`) and make them discoverable from the project README (brief commands on the README; longer notes may live in `docs/` per `documentation.mdc`).
 - CI workflows should invoke those same scripts/commands so local and CI stay aligned.
 - Monorepo E2E locally: bring up the test stack (compose/seed) as documented, then run Playwright — same isolated data rules as CI.
 

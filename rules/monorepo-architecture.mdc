@@ -33,11 +33,11 @@ project-root/
 │   ├── bserver/
 │   └── ...
 ├── tools/                       # Optional: one-off CLIs, scripts, experiments
-├── docs/                        # Optional: project docs (not architecture rules)
+├── docs/                        # System-wide docs (architecture, decisions, long-form notes) — see documentation.mdc
 ├── docker-compose.yml           # Local stack orchestration (repo root)
 ├── docker-compose.dev.yml       # Optional: air/hot-reload overrides
 ├── .env.example                 # Optional but recommended: documented env keys (no secrets)
-└── README.md
+└── README.md                    # Short landing page; link into docs/ for depth (documentation.mdc)
 ```
 
   - Service names (`aserver`, `bserver`, …) are placeholders. Real repos rename folders to domain names.
@@ -87,13 +87,13 @@ project-root/
     - NATS / Redis / other brokers or caches
     - observability sidecars (OTel collector, etc.) when adopted
   - Wire service env via Compose + `.env` / `.env.example`. Never commit secrets.
-  - Document the happy path in the root README: e.g. `docker compose up --build` for infra/services, plus the frontend package scripts for UI apps.
+  - Document the happy path so it is **discoverable from the root README** (quickstart one-liners; longer notes may live in `docs/` and be linked — see `documentation.mdc`): e.g. `docker compose up --build` for infra/services, plus the frontend package scripts for UI apps.
 
 ### Test environments
 
   - E2E (Playwright — see `testing.mdc` / `frontend-testing`) runs against **real** first-party backends in a dedicated test stack — not mocks of in-repo services.
   - Use a dedicated test database (or equivalent store), separate from day-to-day developer data. Seed and/or reset per suite or run so mutations stay isolated to the test scope.
-  - Document how to bring up the test stack (compose profile, env files, seed command) **and how to run tests locally** (unit/L2/E2E commands) in the root README — no product-specific ports required in these rules.
+  - Document how to bring up the test stack (compose profile, env files, seed command) **and how to run tests locally** (unit/L2/E2E commands) so they are discoverable from the root README (brief on README; details may be in `docs/testing.md` per `documentation.mdc`) — no product-specific ports required in these rules.
   - CI: follow `ci-github` (GitHub Flow + Actions). E2E uses the test environment above; keep L2/unit in `ci.yml` path-filtered jobs as appropriate.
 
 ### Cross-cutting conventions
@@ -104,26 +104,26 @@ project-root/
   - Ignore build outputs, local media, vendor dumps, and machine-specific paths in `.gitignore`.
   - Optional root task runner (Just/Make) for common commands (`buf generate`, compose, lint) — useful, not mandatory.
   - Follow `ci-github` for GitHub Actions under GitHub Flow (lint, unit/L2, selective E2E, buf when protobuf is used).
+  - Project documentation: follow `documentation.mdc` (README landing pages + `docs/` for depth; feature docs colocated under ownership folders).
 
 ### Rule presets (which `.mdc` files to attach)
 
   Prefer attaching by project shape — do not dump every rule into every repo.
 
   **Frontend-only** (no backend in-repo):
-  - Always: `code-craft`, `frontend-core`
+  - Always: `code-craft`, `frontend-core`, `testing`, `frontend-testing`
   - When calling HTTP APIs: `http-api-contract`, `frontend-http-api`
   - When consuming protobuf clients: `frontend-protobuf-gen`
   - When using Rust WASM engines: `rust-core`, `frontend-rust-wasm`
-  - When writing automated tests: `testing`, `frontend-testing`
   - When adding GitHub Actions / CI: `ci-github`
 
   **Full monorepo** (this layout):
-  - Always: `monorepo-architecture`, `code-craft`
-  - Frontend: `frontend-core` (+ `frontend-http-api` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `rust-core` / `frontend-testing` + `testing` as needed)
+  - Always: `monorepo-architecture`, `code-craft`, `testing`
+  - Frontend: `frontend-core`, `frontend-testing` (+ `frontend-http-api` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `rust-core` as needed)
   - HTTP backends: `http-api-contract` + stack rule (`backend-go-http-architecture-patterns` + `go-core`, `backend-python-fastapi-architecture-patterns`, or `backend-rust-http-architecture-patterns` + `rust-core`)
   - gRPC backends: stack rule (`backend-go-grpc-architecture-patterns` + `go-core`, or `backend-rust-grpc-architecture-patterns` + `rust-core`) — not http-api-contract
   - Cross-domain orchestration (rare): `backend-usecases`
-  - Automated tests: always include `testing`; frontend UI tests also `frontend-testing`; monorepo E2E also this file’s test-environment guidance
+  - Monorepo E2E: this file’s test-environment guidance
   - CI / GitHub Actions: `ci-github`
 
 ### What this file is not

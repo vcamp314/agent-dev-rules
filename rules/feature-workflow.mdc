@@ -1,10 +1,10 @@
 ---
-description: feature/fix delivery — git prep, requirements (user vs inferred), TDD/BDD, bounded verify, multi-critic, manual QA handoff
+description: feature/fix delivery — git prep, requirements, design docs, TDD/BDD, bounded verify, multi-critic, manual QA handoff
 alwaysApply: false
 ---
 # Feature / fix development protocol
 
-Apply when implementing a feature or bugfix (especially when the user runs `/feature-start`). Do not skip steps. Do not commit until the user runs `/commit-push` or explicitly asks to commit.
+Apply when implementing a feature or bug fix (especially when the user runs `/feature-start`). Do not skip steps. Do not commit until the user runs `/commit-push` or explicitly asks to commit. Documentation placement and templates: follow `documentation.mdc`.
 
 ## Ordered steps
 
@@ -25,7 +25,21 @@ Break the ask into numbered functional requirements (Given/When/Then or bullet b
 
 **Pause for user confirmation** before writing tests so they can drop or edit inferred items.
 
-### 3. Test design (BDD-oriented TDD)
+### 3. Design documentation
+
+After requirements are confirmed, and before Red (or as soon as a non-obvious design fork is settled during Plan/Ask):
+
+1. Follow `documentation.mdc` placement:
+   - Feature-owned behavior → colocated `<ownership>/README.md` (+ `<ownership>/docs/` when depth warrants it).
+   - Cross-cutting / system-wide → repo-root `docs/` or `backend/<service>/docs/` as appropriate.
+2. Capture **design decisions** (context, chosen, alternatives rejected, consequences, revisit-if) when the skip criteria in `documentation.mdc` do **not** apply.
+3. Distill Ask/Plan deliberation into decision records — not chat transcripts.
+4. **Fixes / improvements:** update or delete the docs for every feature or system-wide behavior this change modifies. Do not leave obsolete docs.
+5. If a new tradeoff needs a human call, **pause** before locking the decision into docs and code.
+
+Trivial mechanical changes with no design fork may skip new decision records but must still refresh docs if existing docs would become wrong.
+
+### 4. Test design (BDD-oriented TDD)
 
 For each **approved** requirement, choose the level using project `testing.mdc` (and `frontend-testing` / stack rules as applicable):
 
@@ -35,24 +49,24 @@ For each **approved** requirement, choose the level using project `testing.mdc` 
 
 Prefer behavior-focused names/specs over implementation asserts.
 
-### 4. Red
+### 5. Red
 
 Write the tests; run them locally; confirm they fail for the right reason.
 
-### 5. Green
+### 6. Green
 
-Implement per project architecture rules (`.cursor/rules/`). Keep compose-from-leaves (`code-craft` Composition).
+Implement per project architecture rules (`.cursor/rules/`). Keep compose-from-leaves (`code-craft` Composition). Keep docs aligned if implementation reveals a decision change (update the same-change docs — do not defer).
 
-### 6. Verify (bounded loop)
+### 7. Verify (bounded loop)
 
 Re-run relevant tests and fix failures. After the first red→green attempt, allow **at most 3** fix-and-rerun cycles (each “tests fail → edit → re-run” counts as one).
 
 If still failing after 3 cycles: **stop**. Report remaining failures (commands, key output, hypotheses) and **request human intervention**. Do not keep iterating. Do **not** start multi-critic.
 
-### 7. Multi-critic
+### 8. Multi-critic
 
-Only after tests are green. Follow `multi-critic-protocol.mdc`. Pass the original task and **approved** requirements (user-specified + accepted inferred only) so critics do not treat dropped inferences as missing scope.
+Only after tests are green. Follow `multi-critic-protocol.mdc`. Pass the original task, **approved** requirements (user-specified + accepted inferred only), and pointers to any design docs written/updated so critics do not treat dropped inferences as missing scope and can respect discarded alternatives.
 
-### 8. Hand off
+### 9. Hand off
 
-Summarize for user **manual QA** (what to click/run, which commands). Do **not** commit or push until `/commit-push`.
+Summarize for user **manual QA** (what to click/run, which commands). List **docs created/updated** (paths). Do **not** commit or push until `/commit-push` (perfect-commit path: implementation + tests + docs + GitHub issue link; user may `/commit-push --simple` for trivial work).
