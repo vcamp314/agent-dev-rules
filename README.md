@@ -73,6 +73,11 @@ Alternatively use Cursor **Add Rule → Remote Rule (GitHub)** for this repo onc
 | `/feature-start` | Full feature/fix loop (requirements, design docs, TDD, multi-critic, QA handoff) |
 | `/commit-push` | Perfect commit (code+tests+docs+issue) or `--simple` bypass; push |
 | `/sync-rules` | Refresh rules/agents/commands from this repo |
+| `/init-planning` *(opt-in)* | One-time setup: install planning rules into a home repo and fill placeholders (asks for any values not supplied) |
+| `/plan-day` *(opt-in)* | Review cross-project backlog → prioritize (urgency×impact + text scan) → capacity-bounded shortlist → approve |
+| `/start-day` *(opt-in)* | Dispatch bounded per-task workers against today's approved shortlist |
+
+Daily planning is **opt-in** (not installed by bootstrap): `/plan-day` + `/start-day` are driven by the tool-agnostic `daily-planning.mdc` protocol and the `backlog-sources.mdc` config (backlog sources, priority/estimator, and a remote plan store for cross-project use). Run `/init-planning` once to install those two rules plus the commands into a designated home repo and fill in their placeholders (backlog repos, home repo, store, budget); it prompts for anything you don't pass inline.
 
 ### Feature loop (summary)
 
@@ -193,10 +198,12 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 | `documentation.mdc` | README + colocated/`docs/` placement; design decisions; keep docs in sync |
 | `feature-workflow.mdc` | Feature/fix TDD delivery protocol (includes design docs step) |
 | `multi-critic-protocol.mdc` | Parallel critic orchestration after green tests |
+| `daily-planning.mdc` | Opt-in daily task protocol: review backlog → prioritize → capacity-bound → dispatch |
+| `backlog-sources.mdc` | Opt-in config for daily planning: sources, priority/estimator, remote plan store |
 
 **Agents:** `functional-verifier`, `security-auditor`, `qa-edgecase-verifier`, `architecture-linter`, `test-coverage-auditor`
 
-**Commands:** `new-project`, `feature-start`, `commit-push`, `sync-rules`
+**Commands:** `new-project`, `feature-start`, `commit-push`, `sync-rules`, `init-planning`, `plan-day`, `start-day`
 
 ---
 

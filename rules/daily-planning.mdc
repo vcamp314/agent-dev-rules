@@ -1,0 +1,66 @@
+---
+description: daily task-management protocol — review cross-project backlog, prioritize by urgency×impact (+secondary text scan), capacity-bound a same-day-deployable shortlist, iterate to approval, then dispatch bounded workers per task
+alwaysApply: false
+---
+# Daily planning & dispatch protocol
+
+Tool-agnostic procedure for two linked activities:
+
+- **Plan** — review backlog(s), propose a prioritized, capacity-bounded shortlist for the day, iterate with the user, and record the approved shortlist.
+- **Dispatch** — read the approved shortlist and put agents to work on its items.
+
+All *configuration* (sources, priority weights, estimator, budget, store) comes from `backlog-sources.mdc` and its overrides — read it first and honor its precedence (inline prompt > project override > central default). The two activities are separate sessions and may run on different machines/agents with no shared local state; they communicate **only** through the configured **plan store**.
+
+---
+
+## Phase A — Plan
+
+### A1. Load config
+Resolve effective config from `backlog-sources.mdc` (+ overrides + any inline instructions in this request). Echo the key choices actually used (sources, budget, store) so the user can correct them early.
+
+### A2. Gather backlog
+Fetch open items from **every** configured source and merge into the normalized shape (`Source contract`). For GitHub, cover **all** configured repos (cross-project). De-duplicate by `url`. If a source is unreachable, report it and continue with the rest.
+
+### A3. Score priority (urgency × impact)
+For each item compute `urgency × impact` from **structured** signals first (labels, due date, milestone, age, reactions, linked PRs). Then apply the **secondary text scan** as a raise-only safety net (see `Priority model`): quote the phrase and record the adjustment when text lifts a tier; never lower a labeled priority; honor negation. Keep a one-line rationale per item.
+
+### A4. Estimate human review→deploy effort
+For each candidate, run the configured `estimator` to guess the **human** effort to review, happy-case test locally, make adjustments, and deploy to the testing environment. Show the itemized estimate and note it is a conservative guess with stated assumptions.
+
+### A5. Capacity-bound the shortlist
+Fill the shortlist greedily by priority until the summed human estimate reaches `capacity.daily_review_deploy_budget` (treat it as a **serial** human budget), leaving headroom so the whole shortlist can realistically deploy same-day. Respect `max_tasks` as a hard fallback. Items that don't fit stay in the backlog with a short "deferred: over budget" note.
+
+### A6. Present the proposed plan
+Show an ordered shortlist: each item with source link, `urgency × impact` score + rationale, any text-scan flags (with quotes), and the effort estimate; then the running total vs budget and what was deferred and why.
+
+### A7. Iterate
+Treat any further user input as prioritization/scoping context or config overrides (e.g. "must ship X", "drop repo B", "assume 6h", "use my bucket estimates"). Re-score/re-fill and re-present. Repeat until the user **explicitly approves**.
+
+### A8. Record the approved shortlist
+On approval, write the final shortlist to the configured **plan store** (default: a tracking issue in `home_repo` with a per-task checklist; alternatives: committed file, gist). Include for each task: source link, score, estimate, and rationale. The store is the single source of truth for dispatch. Report where it was written.
+
+---
+
+## Phase B — Dispatch
+
+### B1. Load the approved shortlist
+Read it from the plan store (do not re-plan). If none exists for the target date, stop and tell the user to plan first.
+
+### B2. Dispatch one worker per task (bounded)
+For each not-yet-done task, start a worker to implement it, honoring a **concurrency cap** so review/deploy stays feasible. Each worker:
+- treats the linked backlog item as the task and follows the project's feature/fix protocol (`feature-workflow.mdc`): git prep → requirements (user-specified vs inferred) → docs → tests → implement → bounded verify → multi-critic when green;
+- **stops at the manual-QA / review handoff and does not commit** (commit stays a deliberate, separate step per `commit-push`), unless the user explicitly authorizes committing.
+
+### B3. Track status
+As each worker finishes (or blocks), update the task's status in the plan store (e.g. check the box / note the branch or blocker) so progress is visible across sessions.
+
+### B4. Summarize
+Report per task: what was done, where the work lives (branch/change), what human review + deploy step remains, and anything blocked needing intervention. Do not claim a task is deployed — deployment stays a human step within the day's budget.
+
+---
+
+## Guardrails
+- Cross-project by design: never assume a single project is in context; the plan store is the durable hand-off.
+- Priority stays explainable: always show why an item ranked where it did.
+- Estimates are guesses, not commitments; keep them conservative and labeled.
+- Respect the budget: prefer fewer, deployable tasks over an over-committed day.

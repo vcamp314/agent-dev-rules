@@ -71,6 +71,27 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
 
 ---
 
+### Daily planning: cross-project shortlist + remote plan store
+
+- **Context:** Wanted a start-of-day command to review backlogged tasks and propose a prioritized plan (by **urgency × impact**), plus a second command to put agents to work on the approved shortlist. Priority evidence is mainly labels/dates, but stale metadata is common. Planning must span **multiple projects/repos** and will usually run from a Cursor cloud agent with **no project in context**; the two commands run as **separate, ephemeral, isolated** sessions.
+- **Chosen:**
+  - Split into tool-agnostic **rules** (`daily-planning.mdc` protocol + `backlog-sources.mdc` config) and Cursor-specific **commands** (`plan-day`, `start-day`); no Cursor terms leak into the rules.
+  - Priority = `urgency × impact` from structured signals, with a **secondary, raise-only text scan** for cues like "ASAP" that outrun stale labels (capped, negation-aware, always surfaced with the quote).
+  - Capacity-bound the shortlist to a **human review→deploy budget** (default ~4h, serial) via a **swappable estimator** (default educated guess; future statistical buckets fit the same contract). Overridable by inline prompt or project rule.
+  - Store the approved shortlist in a **remote, project-independent plan store** — default a tracking GitHub issue in a designated `home_repo` (alternatives: committed file, gist) — so a later, separate session can read it.
+  - Ship an **`/init-planning`** setup command: install the planning rules/commands into a chosen `home_repo` and fill the placeholders (backlog repos, home repo, store, budget) from supplied values, prompting for anything missing. Keeps `backlog-sources.mdc` as the schema source of truth; the command only fills what the user confirms.
+  - Opt-in: not added to bootstrap presets; listed in README + catalog and syncable via `/sync-rules`.
+- **Alternatives rejected:**
+  - **Local `.cursor/plans/{date}.md` hand-off** — fails cross-project (no project context) and across ephemeral/isolated cloud agents (no shared disk between the two commands).
+  - **Text-only or label-only priority** — text-only is noisy/unauditable; label-only misses stale metadata. Structured-primary + capped raise-only text scan balances both.
+  - **Bound the day by agent time** — the real constraint is human review + deploy bandwidth, so budget in human hours.
+  - **Cursor-specific rules** — would violate the tool-agnostic-body principle; Cursor specifics (cloud ephemerality, background-agent dispatch) live only in the command files.
+  - **Force it into bootstrap** — extra machinery most projects don't need; keep opt-in.
+- **Consequences:** Needs `gh` authenticated and a designated `home_repo` (or a gist fallback) reachable from any agent. Estimates are explicitly conservative guesses, not commitments; deployment stays a human step within the budget.
+- **Revisit if:** A statistical estimator replaces the default guess (slot behind the estimator contract); or a non-GitHub tracker becomes primary (generalize the store beyond issue/file/gist).
+
+---
+
 ### This repo’s own docs
 
 - **Context:** After adding `documentation.mdc`, agent-dev-rules itself had no `docs/` capturing the above deliberation.
