@@ -32,7 +32,8 @@ This repository is **not** an application monorepo. There is no `frontend/` / `b
 | Documentation protocol | `rules/documentation.mdc` | README + colocated/`docs/` placement; decisions; sync with code |
 | Testing strategy | `rules/testing.mdc` | E2E/L1/L2/unit; **day-one** harness + minimal passing test |
 | Multi-critic | `rules/multi-critic-protocol.mdc` + `agents/` | Parallel review after green tests |
-| Slash commands | `commands/` | `/new-project`, `/feature-start`, `/commit-push`, `/sync-rules` |
+| Daily planning (opt-in) | `rules/daily-planning.mdc` + `rules/backlog-sources.mdc` | Cross-project backlog review → prioritized, capacity-bounded shortlist → dispatch; config + remote plan store |
+| Slash commands | `commands/` | `/new-project`, `/feature-start`, `/commit-push`, `/sync-rules`, `/plan-day`, `/start-day` |
 
 ### Include graph (conceptual)
 

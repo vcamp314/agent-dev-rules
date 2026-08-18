@@ -1,0 +1,113 @@
+---
+description: task-management config — backlog sources (GitHub multi-repo default; Linear/other extensible), urgency×impact priority with secondary text scan, human review→deploy budget, and a remote plan store for cross-project daily planning
+alwaysApply: false
+---
+# Backlog sources & daily-planning config
+
+Central, **tool-agnostic** configuration consumed by `daily-planning.mdc`. It defines *where* backlog items come from, *how* they are prioritized and estimated, and *where* the approved daily shortlist is stored. This file is only config + contracts; the procedure lives in `daily-planning.mdc`.
+
+## Configuration precedence
+
+Resolve every field top-down; the first source that sets a field wins:
+
+1. **Inline prompt** — instructions typed by the user when they start a planning or execution session (highest). E.g. "only repo X today", "assume 6h", "treat #42 as urgent".
+2. **Project / local override** — a project may ship its own copy of this file (or a `*.local` variant) that overrides individual fields for that project's context.
+3. **Central default** — the `defaults` below.
+
+Merge is **field-by-field**, not whole-file: an override that sets only `capacity` keeps the central `sources` and `priority`.
+
+## Config schema (defaults)
+
+```yaml
+backlog:
+  # --- where backlog items come from (see "Source contract") ---
+  sources:
+    - type: github            # github | linear | other
+      github:
+        repos:                # MULTIPLE repos are expected for cross-project planning
+          - <owner>/<repo-a>
+          - <owner>/<repo-b>
+        query: "is:open is:issue"      # per-repo filter
+        include_pull_requests: false
+    # - type: linear          # extension point; see "Source contract"
+    #   linear:
+    #     teams: [<TEAM_KEY>]
+    #     states: [Backlog, Todo]
+
+  # --- priority = urgency x impact (see "Priority model") ---
+  priority:
+    urgency_labels:  { "urgent": 3, "priority:high": 3, "priority:med": 2, "priority:low": 1 }
+    impact_labels:   { "impact:high": 3, "customer": 3, "impact:med": 2, "impact:low": 1 }
+    structured_signals: [due_date, milestone, issue_age, reactions, linked_prs, assignee]
+    # Secondary text scan: raise-only safety net for stale labels/dates.
+    text_scan:
+      enabled: true
+      max_tier_bump: 1        # text may lift urgency/impact by at most this many tiers
+      urgency_cues: ["asap", "urgent", "blocker", "blocking", "prod down", "p0", "hard deadline", "by eod", "by today", "sla"]
+      impact_cues:  ["customer", "revenue", "data loss", "security", "outage", "many users", "compliance"]
+      honor_negation: true    # ignore cues under "not", "no longer", etc.
+    score: "urgency * impact"           # tie-breakers below, in order
+    tie_breakers: [due_date, issue_age]
+
+  # --- capacity: bound the day so the shortlist is deployable same-day ---
+  capacity:
+    # Serial HUMAN bandwidth for review->deploy, not agent time.
+    daily_review_deploy_budget: "4h"
+    max_tasks: 8                        # hard fallback cap
+    estimator: educated_guess          # swappable; see "Estimator contract"
+    estimate_parts: [code_review, happy_case_local_test, adjustments, deploy_to_testing]
+
+  # --- plan store: where the approved shortlist is recorded (see "Plan store") ---
+  planning:
+    home_repo: <owner>/planning         # holds cross-project config + daily plans
+    store:
+      type: github_issue                # github_issue | github_file | gist
+      title: "Day plan {date}"          # github_issue
+      path: "plans/{date}.md"           # github_file
+      labels: ["day-plan"]
+```
+
+`{date}` is the local date in `YYYY-MM-DD`.
+
+## Source contract
+
+A backlog source must yield a normalized list of items:
+
+```
+{ id, source, repo/team, title, url, labels, due_date, milestone, age,
+  reactions, linked_prs, assignee, body, latest_comments }
+```
+
+- **github (default):** list open items across **every** configured repo and merge them. Prefer a cross-repo search where available, else query each repo and concatenate. De-duplicate by `url`.
+- **linear / other (extension):** implement the same normalized shape from that tracker's API/integration. Only the mapping layer changes; scoring, estimation, and storage are source-agnostic. If a configured source cannot be reached, report it and continue with the reachable sources (never silently drop one).
+
+## Priority model
+
+Two tiers, combined into `urgency * impact` (each 1–3):
+
+- **Primary (structured):** `urgency_labels`, `impact_labels`, plus `structured_signals` (nearer `due_date`, closer `milestone`, greater `issue_age`, more `reactions`, existing `linked_prs`). These set the baseline tier.
+- **Secondary (text scan):** scan `title`, `body`, and `latest_comments` for `urgency_cues` / `impact_cues`. This is a **raise-only safety net** for stale labels/dates:
+  - It may lift a tier by at most `max_tier_bump`; it must **never lower** a labeled priority.
+  - When `honor_negation`, ignore cues that are negated ("this is **not** urgent").
+  - Every text-driven change is **surfaced with the quoted phrase and rationale** (e.g. *"labeled `priority:med`, body says 'must ship today' → treated High; consider updating the label"*), so it stays auditable and correctable.
+
+Break ties with `tie_breakers` in order.
+
+## Estimator contract
+
+`estimator` returns an estimated **human** review→deploy effort for a task, itemized by `estimate_parts` (quick code review, happy-case local test, adjustments buffer, deploy to testing environment).
+
+- Default `educated_guess`: reason conservatively from inferred scope (files likely touched, test surface, integration risk) and return a rough range; state assumptions; these are guesses, not commitments.
+- The estimator is **swappable** behind this contract (e.g. a future statistical-bucket model) without changing the planning procedure. Selection follows the same precedence (inline prompt > project override > central default).
+
+## Plan store
+
+The approved shortlist and this cross-project config must live somewhere **remote and independent of any single project checkout**, so that a *separate* later session (possibly a different machine/agent with no project in context) can read the plan and act on it. Local, per-project paths are unsuitable for cross-project planning.
+
+- **Default:** a designated `home_repo` (a small personal/ops repo) that holds both the cross-project config and the daily plans.
+- **`store.type`:**
+  - `github_issue` (default) — create/update one tracking item titled per `title` with a task **checklist** (each entry links its source item + shows priority, estimate, and rationale). Interactive approval and per-task status (checked/commented) map naturally to it.
+  - `github_file` — commit the shortlist to `path` in `home_repo` (plainer artifact/history, less interactive).
+  - `gist` — per-user store needing no repo layout (fallback when no `home_repo` is designated); no checklist affordance.
+
+The store is the single source of truth handed from planning to execution.
