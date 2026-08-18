@@ -79,6 +79,7 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
   - Priority = `urgency × impact` from structured signals, with a **secondary, raise-only text scan** for cues like "ASAP" that outrun stale labels (capped, negation-aware, always surfaced with the quote).
   - Capacity-bound the shortlist to a **human review→deploy budget** (default ~4h, serial) via a **swappable estimator** (default educated guess; future statistical buckets fit the same contract). Overridable by inline prompt or project rule.
   - Store the approved shortlist in a **remote, project-independent plan store** — default a tracking GitHub issue in a designated `home_repo` (alternatives: committed file, gist) — so a later, separate session can read it.
+  - Ship an **`/init-planning`** setup command: install the planning rules/commands into a chosen `home_repo` and fill the placeholders (backlog repos, home repo, store, budget) from supplied values, prompting for anything missing. Keeps `backlog-sources.mdc` as the schema source of truth; the command only fills what the user confirms.
   - Opt-in: not added to bootstrap presets; listed in README + catalog and syncable via `/sync-rules`.
 - **Alternatives rejected:**
   - **Local `.cursor/plans/{date}.md` hand-off** — fails cross-project (no project context) and across ephemeral/isolated cloud agents (no shared disk between the two commands).
