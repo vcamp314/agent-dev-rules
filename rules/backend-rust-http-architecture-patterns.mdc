@@ -25,6 +25,7 @@ alwaysApply: false
   - Always update aggregates through their aggregate root; do not mutate child entities from outside the root.
   - Features may be SQL-backed or not (e.g. filesystem repos are fine when that is the domain).
   - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers; do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - **Injectable seams:** **Collaborators required** (repos/integrations behind small traits; static generics per `rust-core`; wire at composition root). **Service-as-port is situational** (real second impl or cross-module consumer) — not for mocking services to unit-test handlers. ❌ Do not hold concrete integration types inside feature services.
   - Follow http-api-contract for `/<audience>/v1/...` routes and UUID v7 IDs.
 
 ### Rust/Axum
@@ -194,7 +195,7 @@ docker-compose.dev.yml               # Optional
 
   Key Conventions
   1. Organize by feature; keep layered responsibilities inside the feature via flat files (`endpoints`, `service`, `repository`, `error`, `config`).
-  2. Use manual DI by default.
+  2. Use manual DI by default. **Collaborator ports required** (static generics); service-as-port situational — see rust-core.
   3. Put SQL under `src/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain APIs under `usecases/`.
   4. Routes are `/<audience>/v1/...`; health and similar ops routes may be separate.
   5. Follow rust-core error/`Result` practices, aggregate-root updates, and trait-placement rules above.

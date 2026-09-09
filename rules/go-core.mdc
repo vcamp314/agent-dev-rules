@@ -29,6 +29,32 @@ Apply these Go craft rules for backend services. Pair with code-craft and the re
 - Prefer small functions; if a file grows past ~300 lines, split by responsibility within the same package.
 - Always update aggregates through their aggregate root; do not mutate child entities from outside the root.
 
+### Injectable seams (required for backends)
+
+**Collaborators (required):** Feature/shared services must depend on **small interfaces** (ports) for collaborators across a boundary — persistence, messaging, email, LLM, other integrations — not on concrete client/struct types. Implement concretes under `integrations/` (or repository impls); **construct and inject only at the composition root** (`cmd/…`, `internal/server`). L2 tests swap a fake that implements the same interface. Do not unit-test orchestrators by mocking every collaborator (`testing.mdc`).
+
+```go
+// features/notify/service.go — collaborator port defined where used
+type Mailer interface {
+	Send(ctx context.Context, to, subject, body string) error
+}
+
+type Service struct{ mail Mailer }
+
+func NewService(mail Mailer) *Service { return &Service{mail: mail} }
+
+func (s *Service) Welcome(ctx context.Context, email string) error {
+	return s.mail.Send(ctx, email, "Welcome", "…")
+}
+
+// integrations/email — SMTPClient and FakeClient both satisfy Mailer
+// internal/server — mail := email.NewSMTPClient(cfg); notify.NewService(mail)
+```
+
+❌ Feature imports `*email.SMTPClient` (or similar) and constructs it inside feature code.
+
+**Service-as-port (situational — not for handler unit tests):** Endpoints/handlers may take a concrete `*Service` by default (one implementation in the feature). Introduce a small service interface only when something **other than a test double** needs to swap the implementation — e.g. two real product implementations, or another package/usecase must not import the concrete type. Do **not** add a service interface solely so handlers can be unit-tested with a mocked service; keep handlers thin and cover them with L2 + fake collaborators (`testing.mdc`).
+
 ### Types
 
 - Prefer concrete struct types for domain models and DTOs. Avoid `any` / empty `interface{}` in new code except at rare true boundaries (e.g. heterogeneous decode) — narrow immediately.

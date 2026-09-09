@@ -33,6 +33,32 @@ alwaysApply: false
   - Use ruff for linting/formatting and mypy for type checks
   - Prefer UUID v7 for IDs (see code-craft / http-api-contract).
   - When this service lives in a polyglot monorepo, place it under `backend/<service>/` (see monorepo architecture rules). Keep the internal module layout below inside that service folder; compose stays at the repo root.
+
+### Injectable seams (required)
+
+  **Collaborators (required):** Feature/shared services must depend on **small Protocols/ABCs** (ports) for collaborators across a boundary — persistence, messaging, email, LLM, other integrations — not on concrete client classes. Implement concretes under `integrations/` (or repository impls); **wire only via FastAPI `Depends` / composition root** (`main`, app-level `dependencies`). L2 tests override deps with a fake that satisfies the same Protocol. Do not unit-test orchestrators by mocking every collaborator (`testing.mdc`).
+
+```python
+# features/notify/service.py — collaborator port defined where used
+from typing import Protocol
+
+class Mailer(Protocol):
+    async def send(self, to: str, subject: str, body: str) -> None: ...
+
+class Service:
+    def __init__(self, mail: Mailer) -> None:
+        self._mail = mail
+
+    async def welcome(self, email: str) -> None:
+        await self._mail.send(email, "Welcome", "…")
+
+# integrations/email — SMTPClient and FakeMailer both match Mailer
+# dependencies.py — get_mailer() -> SMTPClient(...); get_notify_service(mail=Depends(get_mailer))
+```
+
+  ❌ Router or feature constructs `SMTPClient()` directly, or imports a concrete integration type into feature business logic.
+
+  **Service-as-port (situational — not for router unit tests):** Routers may `Depends` on a concrete `Service` by default. Introduce a service Protocol only when something **other than a test double** needs to swap the implementation — e.g. two real product implementations, or another package/usecase must not import the concrete class. Do **not** add a service Protocol solely so routers can be unit-tested with a mock service; keep routers thin and cover them with L2 + fake collaborators (`testing.mdc`).
   - File structure (feature module approach):
 
 ```text
@@ -98,7 +124,7 @@ fastapi-project/                          # e.g. backend/aserver when in a monor
 ```
 
   - If any file in a feature gets long (> 300 lines), consider creating a folder and break the file into parts if reasonable ways of dividing the file exist (e.g. from dependencies.py to dependencies/redis.py dependencies/aws.py)
-  - Set up routers to dependency inject (using FastAPI's Depends) interfaces of services for pluggability — wire integrations, shared `services/`, feature services, and optional usecases at the composition root (`main` / dependencies).
+  - Follow **Injectable seams** above: collaborator Protocols required; service Protocol only when situational criteria apply. Wire concretes at the composition root.
   - If a feature has many queries and it makes sense to separate concerns (e.g. SQLAlchemy + raw SQL + Redis, or multi-DB), introduce `repository.py` implementing interfaces that are dependency injected into the feature service (as services are to routers)
 
 ### Use Cases
@@ -153,7 +179,7 @@ fastapi-project/                          # e.g. backend/aserver when in a monor
 
   Key Conventions
   1. Organize by `features/`; shared domain in `services/` after reuse; externals in `integrations/`; dumb helpers in `common/`; optional orchestration in `usecases/`.
-  2. Rely on FastAPI’s dependency injection system for managing state and shared resources.
+  2. **Collaborator ports required** (Protocol/ABC + `Depends`); service Protocol only when situational — see Injectable seams.
   3. Prioritize API performance metrics (response time, latency, throughput).
   4. Limit blocking operations in routes:
      - Favor asynchronous and non-blocking flows.

@@ -99,3 +99,25 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
 - **Alternatives rejected:** Leaving decisions only in chat history; stuffing all of this back into the root README.
 - **Consequences:** Future workflow changes should update `docs/decisions.md` (or linked topic files) in the same change.
 - **Revisit if:** The README becomes too long again — promote presets/catalog into `docs/` and leave only quickstart on the landing page.
+
+---
+
+### Explicit injectable seams on backends (with examples)
+
+- **Context:** Greenfield backends scaffolded from these rules often wired concrete integration clients into features. The plug-and-play / test-fake pattern existed only implicitly (folder trees, “define interfaces where used”). Frontend does not need the same DI rule. Separately: whether transport should depend on a service interface (chatserver-style `ServiceInterface`) for unit-testing handlers.
+- **Chosen:**
+  - Mandatory **collaborator** ports with compact ✅/❌ examples in `go-core`, `rust-core` (backends only; not WASM engines), and FastAPI stack rules.
+  - Hard must-bullets in every Go/Rust backend stack architecture file pointing at those examples.
+  - Rust collaborator ports **default to static generics** (`Service<M: Trait>`). `Arc<dyn Trait>` / runtime swap is an exception, not a scaffold rule.
+  - **Service-as-port is situational:** allow when there are two real implementations or a cross-package/usecase consumer that must not import the concrete. Handlers/routers may take a concrete `Service` by default.
+  - Do **not** require a service interface solely to mock the service for handler/router unit tests — keep transport thin; cover with L2 + fake collaborators (`testing.mdc`).
+  - Leave `frontend-core` unchanged for this pattern.
+- **Alternatives rejected:**
+  - **Frontend DI rules** — React services are API client modules; plug-and-play there is rare.
+  - **`code-craft` only** — too broad; would pollute frontend context.
+  - **New `backend-core.mdc`** — unnecessary; language cores + stack musts suffice.
+  - **Default Rust to `Arc<dyn Trait>`** — overkill when one concrete type per process (env/test) is the normal case.
+  - **Always interface the feature Service** — YAGNI with one impl; invites handler unit tests behind mocks that conflict with the testing strategy.
+  - **Service ports only (no collaborator ports)** — misses the seam actually swapped in prod/L2 (integrations/repos).
+- **Consequences:** Scaffold and feature work must introduce collaborator ports at use sites and wire concretes at composition roots; L2 fakes implement those ports. Service interfaces appear only when product/composition needs them.
+- **Revisit if:** A product needs mid-process runtime swap of integrations often enough to justify a first-class `Arc<dyn>` rule; or multiple real service implementations become the common case and a stronger default is warranted.

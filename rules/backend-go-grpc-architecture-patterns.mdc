@@ -22,6 +22,7 @@ alwaysApply: false
   - Single-provider integrations may start with `client.go` + `models.go` only; add `<provider>.go` when a second vendor/impl appears.
   - Features may be in-memory, messaging-backed, SQL-backed, or mixed — pick the persistence/integration that fits the domain.
   - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers; do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - **Injectable seams:** **Collaborators required** (repos/integrations behind small interfaces; wire at composition root) — see `go-core`. **Service-as-port is situational** (real second impl or cross-package consumer) — not for mocking services to unit-test handlers. ❌ Do not construct concrete clients inside feature packages.
   - Protobufs are the API contract: define services/messages in the monorepo `protobuf/` tree; consume generated Go from the shared gen package (e.g. `backend/lib/gen/pb`). Do not hand-edit generated pb code.
 
 ### Go/gRPC
@@ -202,7 +203,7 @@ return status.Errorf(codes.NotFound, "room not found")
 
   Key Conventions
   1. Organize by feature; keep layered responsibilities in flat files (`endpoints`, `service`, optional `repository`, `errors`, `config`).
-  2. Use manual DI by default; Wire only when complexity warrants it.
+  2. Use manual DI by default; Wire only when complexity warrants it. **Collaborator ports required**; service-as-port situational — see go-core.
   3. Put SQL under `internal/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain RPCs under `usecases/`.
   4. Never hand-edit generated protobuf or sqlc output.
   5. Map domain errors to gRPC `status`/`codes` at the endpoint boundary; follow go-core for `%w` / `errors.Is` internally.

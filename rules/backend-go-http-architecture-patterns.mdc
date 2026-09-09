@@ -22,6 +22,7 @@ alwaysApply: false
   - Single-provider integrations may start with `client.go` + `models.go` only; add `<provider>.go` when a second vendor/impl appears.
   - Features may be SQL-backed or not (e.g. filesystem/Obsidian repos are fine when that is the domain).
   - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers (persist, notify, validate, …); do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - **Injectable seams:** **Collaborators required** (repos/integrations behind small interfaces; wire at composition root) — see `go-core`. **Service-as-port is situational** (real second impl or cross-package consumer) — not for mocking services to unit-test handlers. ❌ Do not construct concrete clients inside feature packages.
   - Follow http-api-contract for `/<audience>/v1/...` routes and UUID v7 IDs.
 
 ### Go/Echo
@@ -181,7 +182,7 @@ docker-compose.dev.yml               # Optional: air/hot-reload overrides
 
   Key Conventions
   1. Organize by feature; keep layered responsibilities inside the feature via flat files (`endpoints`, `service`, `repository`, `errors`, `config`).
-  2. Use manual DI by default; Wire only when complexity warrants it.
+  2. Use manual DI by default; Wire only when complexity warrants it. **Collaborator ports required**; service-as-port situational — see go-core.
   3. Put SQL under `internal/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain APIs under `usecases/`.
   4. Do not hand-edit sqlc-generated code (or Wire `injector_gen.go` when present).
   5. Routes are `/<audience>/v1/...`; health and similar ops routes may be separate.

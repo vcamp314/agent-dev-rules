@@ -25,6 +25,7 @@ alwaysApply: false
   - Always update aggregates through their aggregate root; do not mutate child entities from outside the root.
   - Features may be in-memory, messaging-backed, SQL-backed, or mixed — pick the persistence/integration that fits the domain.
   - Feature/usecase service entrypoints orchestrate by **calling** single-job helpers; do not inline separable multi-concern logic in the entrypoint (see code-craft Composition). Unit-test the helpers; cover the orchestrator with E2E/L2 (`testing.mdc`).
+  - **Injectable seams:** **Collaborators required** (repos/integrations behind small traits; static generics per `rust-core`; wire at composition root). **Service-as-port is situational** (real second impl or cross-module consumer) — not for mocking services to unit-test handlers. ❌ Do not hold concrete integration types inside feature services.
   - Protobufs are the API contract: define services/messages in the monorepo `protobuf/` tree; consume generated Rust from the shared gen package (e.g. `backend/lib/gen/pb`). Do not hand-edit generated pb code.
 
 ### Rust/gRPC (Tonic)
@@ -218,7 +219,7 @@ docker-compose.dev.yml               # Optional
 
   Key Conventions
   1. Organize by feature; keep layered responsibilities in flat files (`endpoints`, `service`, optional `repository`, `error`, `config`).
-  2. Use manual DI by default.
+  2. Use manual DI by default. **Collaborator ports required** (static generics); service-as-port situational — see rust-core.
   3. Put SQL under `src/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain RPCs under `usecases/`.
   4. Never hand-edit generated protobuf output.
   5. Map domain errors to `tonic::Status` at the endpoint boundary; use `thiserror` internally.

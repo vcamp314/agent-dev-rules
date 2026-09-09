@@ -19,6 +19,41 @@ Apply these Rust craft rules for backend services and frontend WASM engines. Pai
 - Prefer small modules and clear functions; if a file grows past ~300 lines, split by responsibility within the same module tree.
 - When defining a local seam, define traits where they are used; keep traits small and single-purpose.
 
+### Injectable seams (required for backend services)
+
+For **HTTP/gRPC backends** (not required for pure WASM engine crates):
+
+**Collaborators (required):** Feature/shared services must depend on **small traits** (ports) for collaborators across a boundary — persistence, messaging, email, LLM, other integrations — not on concrete client types. Implement concretes under `integrations/` (or repository impls); **construct and inject only at the composition root** (`main`, server bootstrap).
+
+**Default for collaborator ports:** static dispatch via generics (`Service<M: Mailer>`). One concrete type per process is the normal case (prod vs staging vs test chosen at startup). L2 tests inject a fake that implements the same trait. Do not unit-test orchestrators by mocking every collaborator (`testing.mdc`).
+
+```rust
+// features/notify — collaborator trait defined where used
+#[async_trait::async_trait]
+pub trait Mailer: Send + Sync {
+    async fn send(&self, to: &str, subject: &str, body: &str) -> Result<(), anyhow::Error>;
+}
+
+pub struct Service<M: Mailer> { mail: M }
+
+impl<M: Mailer> Service<M> {
+    pub fn new(mail: M) -> Self { Self { mail } }
+
+    pub async fn welcome(&self, email: &str) -> Result<(), anyhow::Error> {
+        self.mail.send(email, "Welcome", "…").await
+    }
+}
+
+// integrations/email — SmtpClient and FakeMailer both impl Mailer
+// main/server — let notify = notify::Service::new(SmtpClient::connect(&cfg).await?);
+```
+
+❌ `Service` holds `SmtpClient` by concrete type or calls `SmtpClient::connect` inside feature code.
+
+Do **not** default to `Arc<dyn Trait>` / runtime swap; that is an exception only when a clear need appears — not the scaffold default.
+
+**Service-as-port (situational — not for handler unit tests):** Handlers may take a concrete `Service<…>` by default. Introduce a service trait only when something **other than a test double** needs to swap the implementation — e.g. two real product implementations, or another module/usecase must not depend on the concrete type. Do **not** add a service trait solely so handlers can be unit-tested with a mock service; keep handlers thin and cover them with L2 + fake collaborators (`testing.mdc`).
+
 ### Types
 
 - Prefer concrete types and enums for domain data. Avoid type erasure (`Box<dyn Any>`, untyped JSON bags) in domain/feature code; parse into structs (`serde`) at boundaries.
