@@ -129,7 +129,7 @@ Pair with: code-craft. Attach frontend-http-api when calling HTTP APIs; frontend
 
 ### Best Practices
 - State management:
-    - Where possible and reasonable to do so, suggest saving state in the url as query strings - consider react router library's useSearchparams to do this
+    - Where possible and reasonable, keep shareable UI state in the **URL as query parameters** (filters, selected ids, tabs, pagination, etc.) so refresh/share/back-forward work. Use whatever router the app already has (e.g. React Router, TanStack Router) and its search/query APIs — do not invent a second source of truth alongside the URL.
     - Avoid introducing interdependency by managing state centrally -> pass by props, keeping nesting of components shallow where possible - only manage state centrally from shared folder that is needed everywhere in the app (e.g. api auth tokens, user info needed accross features etc.)
     - Consider using a tool to share state between conponents when we need to pass a state as a prop through more than 3 levels of component hierarchy and into more than 2 or 3 places - in this case consider introducing state management mechanism in this order:
         - Use context providers if we have no other context provider already overlapping with the components we want to share state for

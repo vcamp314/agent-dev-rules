@@ -1,5 +1,5 @@
 ---
-description: frontend automated testing (Playwright E2E/L1, Jest + React Testing Library)
+description: frontend automated testing (Playwright E2E/L1, Vitest + React Testing Library; Jest only if not on Vite)
 alwaysApply: false
 ---
 Use when writing frontend automated tests. Pair with `testing.mdc` for level selection. Pair with `monorepo-architecture` when E2E runs against in-repo backends.
@@ -7,8 +7,8 @@ Use when writing frontend automated tests. Pair with `testing.mdc` for level sel
 ### Tooling
 
 - E2E and integration L1: **Playwright**
-- Unit: **Jest** + **React Testing Library** (RTL)
-- Run locally via terminal (e.g. `npm test` / `npx playwright test`, or the project’s package scripts) as well as in CI — see `testing.mdc` Local runs.
+- Unit: **Vitest** + **React Testing Library** (RTL) when the app is on **Vite** (the usual case for these rules). Use **Jest** + RTL only for non-Vite setups (or legacy apps that already standardize on Jest) — do not add Jest alongside Vite.
+- Run locally via terminal (e.g. `npm test` / `npx vitest` / `npx playwright test`, or the project’s package scripts) as well as in CI — see `testing.mdc` Local runs.
 
 ### Layout (frontend package root)
 
@@ -18,7 +18,7 @@ e2e/                         # Playwright: E2E and L1 specs
 ├── fixtures/                # Optional: auth/storage helpers
 └── ...
 src/
-└── **/__tests__/            # Or colocated *.test.ts(x) — Jest + RTL
+└── **/__tests__/            # Or colocated *.test.ts(x) — Vitest + RTL (Jest + RTL only if not Vite)
 ```
 
 ### E2E
@@ -34,8 +34,9 @@ src/
 - Mock at the **network/service boundary** (e.g. Playwright route mocking) **only** for third parties that cannot be isolated in the test env.
 - Keep the app and first-party backends real when they are part of the monorepo test stack.
 
-### Unit (Jest + RTL)
+### Unit (Vitest + RTL)
 
 - Prefer testing single-job domain/helpers and presentational behavior with clear contracts (see `testing.mdc` — leaves, not orchestrating containers).
 - Query by role, label, or text. Avoid asserting internal React state or child component structure.
 - Do not unit-test multi-step container orchestration with heavy mocks of every collaborator — cover that with E2E/L1 (or L2 on the backend).
+- Configure Vitest to align with the Vite app (same resolve aliases, etc.) so imports match production.

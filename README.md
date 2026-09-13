@@ -112,7 +112,7 @@ code-craft          ← language-agnostic craft (always useful)
 | Shared craft | `code-craft`, `go-core`, `rust-core` | How to write code (incl. typing + composition) — not folder trees |
 | Shared contracts | `http-api-contract`, `backend-usecases`, `testing`, `ci-github` | HTTP paths/IDs; usecases; what/how to test; when CI runs |
 | Repo layout | `monorepo-architecture` | Top-level `frontend/`, `backend/`, `protobuf/`, compose, test env |
-| Frontend | `frontend-core`, `frontend-http-api`, `frontend-protobuf-gen`, `frontend-rust-wasm`, `frontend-testing` | React layout + optional API / protobuf / WASM / Playwright+Jest |
+| Frontend | `frontend-core`, `frontend-http-api`, `frontend-protobuf-gen`, `frontend-rust-wasm`, `frontend-testing` | React layout + optional API / protobuf / WASM / Playwright+Vitest |
 | Backend stacks | `backend-go-http-…`, `backend-go-grpc-…`, `backend-python-fastapi-…`, `backend-rust-http-…`, `backend-rust-grpc-…` | In-service folder layout + framework choices |
 | Workflow | `bootstrap-select-rules`, `feature-workflow`, `documentation`, `multi-critic-protocol` | Greenfield install + feature delivery + docs + critics |
 
@@ -188,7 +188,7 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 | `frontend-http-api.mdc` | Frontend HTTP client + react-query / toasts |
 | `frontend-protobuf-gen.mdc` | Frontend consumes generated protobuf/TS |
 | `frontend-rust-wasm.mdc` | Frontend `crates/` + wasm-bindgen bridge |
-| `frontend-testing.mdc` | Playwright E2E/L1 + Jest/RTL unit tests |
+| `frontend-testing.mdc` | Playwright E2E/L1 + Vitest/RTL unit tests (Jest only if not Vite) |
 | `backend-go-http-architecture-patterns.mdc` | Go Echo HTTP service layout |
 | `backend-go-grpc-architecture-patterns.mdc` | Go gRPC service layout |
 | `backend-python-fastapi-architecture-patterns.mdc` | Python FastAPI service layout |

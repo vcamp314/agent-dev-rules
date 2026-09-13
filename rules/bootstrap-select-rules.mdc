@@ -93,7 +93,7 @@ Using the installed stack rules’ layout trees:
 2. Initialize git + `main` if missing; add a sensible stack `.gitignore` (do **not** gitignore the user’s unrelated local scripts just to silence `git status`).
 3. Pin package manager / Go / Rust toolchain versions appropriately for the scaffold.
 4. **Testing from day one** (required — follow `testing.mdc`):
-   - Wire the stack’s default unit-test runner (e.g. Jest/Vitest + RTL for frontend, `go test`, `pytest`, `cargo test`).
+   - Wire the stack’s default unit-test runner (e.g. **Vitest** + RTL for Vite/React frontends, `go test`, `pytest`, `cargo test`; Jest only for non-Vite frontend).
    - Add **at least one minimal passing test** (trivial assert / smoke is fine — the point is a green command ready to extend).
    - Run that command once; confirm it passes before considering scaffold done.
    - Put the exact command on the root README quickstart.

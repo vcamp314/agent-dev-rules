@@ -9,7 +9,7 @@ Apply when writing or changing automated tests. Pair with stack tooling (`fronte
 - Every new project scaffold **must** include a working unit-test runner for each stack present and **at least one minimal passing test**.
 - Run the documented test command once during scaffold and confirm it is green before calling bootstrap done.
 - A trivial smoke test is enough at birth (e.g. `assert 1 + 1 == 2`, `expect(true).toBe(true)`, `TestTrue`, empty `#[test] fn smoke()`). The goal is a harness ready to extend — not full coverage on day one.
-- E2E/Playwright and rich L2 suites may come later; do not block greenfield on them. When React is present, still install `frontend-testing` and prefer a minimal unit (Jest/Vitest) green test on day one; add Playwright when E2E work starts.
+- E2E/Playwright and rich L2 suites may come later; do not block greenfield on them. When React is present, still install `frontend-testing` and prefer a minimal unit (**Vitest** + RTL on Vite; Jest only if not Vite) green test on day one; add Playwright when E2E work starts.
 - Document the exact local test command on the root README (see `documentation.mdc`).
 
 ### Local runs

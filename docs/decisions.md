@@ -121,3 +121,23 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
   - **Service ports only (no collaborator ports)** — misses the seam actually swapped in prod/L2 (integrations/repos).
 - **Consequences:** Scaffold and feature work must introduce collaborator ports at use sites and wire concretes at composition roots; L2 fakes implement those ports. Service interfaces appear only when product/composition needs them.
 - **Revisit if:** A product needs mid-process runtime swap of integrations often enough to justify a first-class `Arc<dyn>` rule; or multiple real service implementations become the common case and a stronger default is warranted.
+
+---
+
+### Frontend URL state without locking a router library
+
+- **Context:** `frontend-core` told agents to use React Router’s `useSearchParams` for URL state; apps may use other routers (e.g. TanStack Router).
+- **Chosen:** Prefer shareable UI state in **URL query parameters**; use the app’s existing router search/query APIs; do not invent a second source of truth. Name React Router / TanStack Router only as examples.
+- **Alternatives rejected:** Hard-requiring React Router `useSearchParams`.
+- **Consequences:** Agents pick the project’s router APIs; URL remains the shareable-state default where reasonable.
+- **Revisit if:** The stack standardizes on one router and a single API should be named for consistency.
+
+---
+
+### Vitest as default unit runner for Vite frontends
+
+- **Context:** Rules previously said Jest (or Jest/Vitest vaguely). Vite apps align better with Vitest (same resolve/aliases, lighter setup).
+- **Chosen:** **Vitest + RTL** is the default for Vite/React; **Jest + RTL** only for non-Vite or legacy Jest-standardized apps — do not run both on Vite.
+- **Alternatives rejected:** Keeping Jest as the primary frontend unit runner alongside Vite.
+- **Consequences:** Greenfield Vite scaffolds and `frontend-testing` / bootstrap / README point at Vitest.
+- **Revisit if:** A non-Vite React bundler becomes the default scaffold.
