@@ -30,7 +30,7 @@ Keep workflow YAML stack-agnostic: name jobs by concern; `run` steps call the pr
 | `pull_request` | → `main` |
 | `push` | → `main` |
 
-Jobs: lint/format for stacks present (eslint/ruff/golangci-lint/clippy/rustfmt as applicable); unit + L2 for **changed** areas (path filters); `buf lint` / breaking when `protobuf/` changes.
+Jobs: lint/format for stacks present, using the project's linter (Biome for new Vite apps; eslint only if the repo already uses it — do not add both; ruff/golangci-lint/clippy/rustfmt as applicable); unit + L2 for **changed** areas (path filters); `buf lint` / breaking when `protobuf/` changes.
 
 **`e2e.yml` (slower — Playwright)**
 

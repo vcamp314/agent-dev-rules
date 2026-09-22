@@ -115,6 +115,7 @@ Pair with: code-craft. Attach frontend-http-api when calling HTTP APIs; frontend
 
 ### Syntax and Formatting
 
+- New Vite apps: **Biome** for lint and format (one toolchain). If the repo already uses eslint (with or without Prettier), keep that toolchain. Do not run Biome and eslint on the same app.
 - Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
 - Use declarative JSX, keeping JSX minimal and readable.
 - Pefer TypeScript without semi-colons at the end of the lines

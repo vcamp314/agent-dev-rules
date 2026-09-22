@@ -1,10 +1,12 @@
 ---
-description: feature/fix delivery — git prep, requirements, design docs, TDD/BDD, bounded verify, multi-critic, manual QA handoff
+description: feature/fix delivery — git prep, requirements, design docs, TDD/BDD, bounded verify, multi-critic, review triage, manual QA handoff
 alwaysApply: false
 ---
 # Feature / fix development protocol
 
 Apply when implementing a feature or bug fix (especially when the user runs `/feature-start`). Do not skip steps. Do not commit until the user runs `/commit-push` or explicitly asks to commit. Documentation placement and templates: follow `documentation.mdc`.
+
+This is the developer path. When the user invoked `/business-iterate` or `/business-finalize`, those commands override this protocol (no confirmation pauses, no critic loop, no three-cycle stop). Architecture, craft, and testing rules still apply on that path.
 
 ## Ordered steps
 
@@ -69,4 +71,35 @@ Only after tests are green. Follow `multi-critic-protocol.mdc`. Pass the origina
 
 ### 9. Hand off
 
-Summarize for user **manual QA** (what to click/run, which commands). List **docs created/updated** (paths). Do **not** commit or push until `/commit-push` (perfect-commit path: implementation + tests + docs + GitHub issue link; user may `/commit-push --simple` for trivial work).
+Summarize for user **manual QA** (what to click/run, which commands). List **docs created/updated** (paths). Emit **Review triage** below. Do **not** commit or push until `/commit-push` (perfect-commit path: implementation + tests + docs + GitHub issue link; user may `/commit-push --simple` for trivial work). The pull-request body should carry the same triage sections.
+
+### Review triage
+
+Every non-trivial handoff states what a human must read and what automation already covers. Use these sections:
+
+1. **At-a-glance summary** — short list of what changed.
+2. **Must review (human)** — changes that need engineering eyes before merge.
+3. **Safe to skim / trust automation** — changes where green tests and agent review are enough, unless a Must-review item contradicts that.
+4. **Concerns & residual risk** — open questions or watch-in-prod notes, including on items classified Safe.
+
+**Must review** when the change can affect correctness, safety, or operability under real load:
+
+- Architecture or design decisions: service boundaries, data ownership, auth model, public contract breaks
+- Risky implementations: concurrency, locking, queues/jobs, retries, multi-step workflows, cache invalidation, migrations that rewrite data
+- Security: authn/authz, secrets, token or cookie handling, injection, permission checks, PII
+- Performance under production load: hot-path queries, N+1, unbounded fan-out, large payloads, timeouts, pool sizes, failures that show up only with production traffic or more than one instance
+- Deploy topology: assumes a single process or in-memory state, or breaks when roles split or during rolling deploys
+
+If unsure, classify as **Must review**.
+
+**Safe to skim** when failure is local, covered by tests, and unlikely to take down production:
+
+- Copy and docs with no logic change
+- Straightforward helpers and obvious conditionals with unit coverage
+- Layout and styling that does not change auth, payments, or destructive actions
+- Request or response field add/rename/remove with contract tests; thin adapter wiring
+- Isolated happy-path features without new concurrency, new trust boundaries, hot-path cost, or deploy-topology assumptions
+
+Safe means a human deep-read is optional once automation is green and nothing was misclassified. Tests still run.
+
+This is a starting policy. After an incident, move that pattern to Must review. After repeated clean merges, a team may move a pattern to Safe and record it in the project's decision log.

@@ -11,7 +11,7 @@ Skip the full perfect-commit gate when **either**:
 - The user explicitly bypasses: `/commit-push --simple`, or the prompt says `bypass perfect` / `trivial` / `simple commit`, **or**
 - You classify the change as **simple**: typo/comment-only, pure formatting, chore with no behavior change, or a docs-only nit that does not alter product behavior. Say briefly that you are using the simple path.
 
-On the simple path: stage thread files → short why-focused message (issue link optional) → commit → push. Still never commit unrelated files.
+On the simple path: stage thread files → short why-focused message (issue link optional) → commit → push. Still never commit unrelated files. In the suggested pull-request body, one line is enough: classify the change as **Safe to skim** (or **Must review** if the diff is not actually trivial).
 
 ## Perfect-commit path (default for behavioral / design work)
 
@@ -55,6 +55,6 @@ Prefer **one focused commit** for one coherent change (easy to review/revert). I
 3. Draft a concise commit message focused on **why / outcome intent**, not a file list. Prefer 1–2 sentences. Match the repo’s recent commit style (`git log`). **Include the issue reference** (e.g. `Fixes #123` or `See #123` + URL if useful).
 4. Commit with a HEREDOC message. Never skip hooks. Never update git config.
 5. Push: `git push -u origin HEAD` if no upstream; else `git push`. Never `--force` to `main`/`master`. Do not amend unless the user’s/commit safety rules explicitly allow and conditions are met.
-6. Print the branch name, issue URL/number, and remind the user to open the PR on GitHub (PR creation stays manual unless they ask otherwise). Suggest the PR body link the same issue and mention tests/docs briefly.
+6. Print the branch name, issue URL/number, and remind the user to open the PR on GitHub (PR creation stays manual unless they ask otherwise). Suggest a PR body that links the same issue and includes **Review triage** from `feature-workflow.mdc` (At-a-glance, Must review, Safe to skim, Concerns & residual risk). Reuse the triage already written in this thread’s handoff when it is present; otherwise classify the diff using that section. Mention tests and docs briefly.
 
 If there is nothing to commit for this thread, say so and stop.

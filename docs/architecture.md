@@ -28,12 +28,13 @@ This repository is **not** an application monorepo. There is no `frontend/` / `b
 |------|----------|------|
 | Stack / craft rules | `rules/*.mdc` | Include by preset; bodies are tool-agnostic where practical |
 | Greenfield bootstrap | `rules/bootstrap-select-rules.mdc` | Global User Rule; selects preset + scaffold |
-| Feature delivery | `rules/feature-workflow.mdc` | Requirements → docs → TDD → critics → handoff |
+| Feature delivery | `rules/feature-workflow.mdc` | Requirements → docs → TDD → critics → review triage → handoff |
 | Documentation protocol | `rules/documentation.mdc` | README + colocated/`docs/` placement; decisions; sync with code |
 | Testing strategy | `rules/testing.mdc` | E2E/L1/L2/unit; **day-one** harness + minimal passing test |
 | Multi-critic | `rules/multi-critic-protocol.mdc` + `agents/` | Parallel review after green tests |
 | Daily planning (opt-in) | `rules/daily-planning.mdc` + `rules/backlog-sources.mdc` | Cross-project items → triage into agent/human tasks → agent queue + human list (human-day budget, reserving induced reviews); private remote plan store |
-| Slash commands | `commands/` | `/new-project`, `/feature-start`, `/commit-push`, `/sync-rules`, `/init-planning`, `/plan-day`, `/start-day` |
+| Slash commands | `commands/` | `/new-project`, `/feature-start`, `/commit-push`, `/sync-rules`, `/init-planning`, `/plan-day`, `/start-day`, `/business-iterate`, `/business-finalize` |
+| Business idea lane (invoke only) | `commands/business-iterate.md`, `commands/business-finalize.md` | Same architecture rules, no developer ceremony; review PR only; does not run unless invoked |
 
 ### Include graph (conceptual)
 

@@ -12,6 +12,6 @@ Execute the full feature/fix delivery protocol in `.cursor/rules/feature-workflo
 6. **Green** — implement per project architecture rules; compose from leaves; keep docs aligned if decisions change.
 7. **Verify** — at most **3** fix-and-rerun cycles after first red→green; then escalate to the user (no multi-critic if still red).
 8. **Multi-critic** — only when green; follow `multi-critic-protocol.mdc` (parallel critics; max 3 blocker fix cycles); pass approved requirements + design-doc pointers.
-9. **Hand off** — manual QA summary; list docs created/updated; **do not commit** until `/commit-push` (perfect commit + issue unless `--simple`).
+9. **Hand off** — manual QA summary; list docs created/updated; emit **Review triage** (At-a-glance, Must review, Safe to skim, Concerns & residual risk) per `feature-workflow.mdc`; **do not commit** until `/commit-push` (perfect commit + issue unless `--simple`). The same triage goes in the pull-request body.
 
 Treat the rest of the user’s message after this command as the feature/fix request.

@@ -164,3 +164,54 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
 - **Alternatives rejected:** Keeping Jest as the primary frontend unit runner alongside Vite.
 - **Consequences:** Greenfield Vite scaffolds and `frontend-testing` / bootstrap / README point at Vitest.
 - **Revisit if:** A non-Vite React bundler becomes the default scaffold.
+
+---
+
+### Review triage on the developer handoff
+
+- **Context:** Human review is the scarce step once agents draft most of the code. The feature handoff asked for manual QA and a docs list, and `/commit-push` suggested a pull-request body without saying what a human must read.
+- **Chosen:** Every non-trivial developer handoff, and the suggested pull-request body, includes At-a-glance, Must review, Safe to skim, and Concerns & residual risk. Categories and the “if unsure, Must review” default live in `feature-workflow.mdc` (**Review triage**). `/commit-push` reuses that classification. Simple commits get a one-line class.
+- **Alternatives rejected:**
+  - **A separate always-on triage rule file** — the handoff already exists; another file would duplicate the developer path.
+  - **Skipping triage on the developer path and using it only for business PRs** — the bottleneck is the same for both.
+- **Consequences:** Agents classify the diff before asking for review. The starting categories can move after incidents or repeated clean merges, recorded in the consuming project's decision log.
+- **Revisit if:** A critic or CI label should emit the classification instead of the parent agent.
+
+---
+
+### Business idea lane as invoke-only commands
+
+- **Context:** Some products have business contributors who should try ideas with an agent without the developer ceremony, while personal projects and normal engineering work keep `/feature-start`. Experiment code should not get its own folder shape, and it should not land on `main` by renaming files at review time.
+- **Chosen:**
+  - `/business-iterate` and `/business-finalize` apply only when invoked. They override `feature-workflow` pauses, critics, and the three-cycle stop. Installed architecture, craft, and testing rules still apply.
+  - Work happens on `feature/business-ideas/<topic>` branched from `main`, in the same folders `main` uses.
+  - Iterate runs tests, records failures, and continues. Finalize commits simply, pushes, and opens a pull request even when tests are red. The PR body includes review triage plus a handoff: merging is not promotion. A developer promotes wanted behavior later with `/feature-start`.
+  - `ci-github` stays GitHub Flow. No `develop` branch.
+- **Alternatives rejected:**
+  - **Always-on experiment rule in every project** — personal projects have no business team; the developer protocol would change for them.
+  - **Local-only experiment folders rewritten at finalize** — the review diff becomes a move, and the architecture rules are not followed during the experiment.
+  - **No branch isolation, only a virtual label** — nothing stops the agent from editing production routes that then merge.
+- **Consequences:** Copying `commands/` into `~/.cursor/commands/` makes the commands available. Nothing in bootstrap or `/feature-start` runs them. A red business branch is a developer task at review time, not a blocked business session.
+- **Revisit if:** Several products need the experiment branch merged onto `main` behind a route prefix before a developer rewrites it; or business commits need the perfect-commit issue gate.
+
+---
+
+### slog as the Go logger; do not add Wire
+
+- **Context:** Go stack rules listed zerolog and Google Wire as optional upgrades. Wire's generate step duplicates what `go build` already checks on manual constructors. slog is in the standard library.
+- **Chosen:** New Go code logs with `log/slog` (`go-core`). zerolog only when slog is insufficient or the service already uses it. Do not introduce Google Wire unless the service already has it; do not hand-edit existing generated Wire output. Just and air stay optional.
+- **Alternatives rejected:**
+  - **Keep “add Wire when the graph hurts”** — agents were introducing a codegen tool the composition root does not need.
+  - **Require Just and air on day one** — README test commands already cover the agent path; hot reload is a human convenience.
+- **Consequences:** Go HTTP and gRPC trees no longer show `injector.go`. Existing Wire services are left in place.
+- **Revisit if:** A service's constructor graph is large enough that manual wiring is a repeated source of review errors Wire would have caught.
+
+---
+
+### Biome for new Vite apps
+
+- **Context:** `ci-github` named eslint as the JavaScript linter, so greenfield Vite scaffolds grew a second toolchain beside the intended single formatter/linter.
+- **Chosen:** New Vite apps use **Biome** for lint and format. Keep eslint only when the repo already uses it. Do not run both. `ci-github` runs the project's linter rather than installing eslint by default.
+- **Alternatives rejected:** **eslint + Prettier as the greenfield default** — two tools, and Biome matches the Vitest decision (one toolchain that fits Vite).
+- **Consequences:** `frontend-core` and `ci-github` agree. Library-default churn beyond this stays out of these rules until the dependency-rules pass.
+- **Revisit if:** Biome cannot express a lint rule the team must have on every Vite app.

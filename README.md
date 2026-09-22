@@ -29,7 +29,7 @@ Files ship as `.mdc` (Markdown + optional YAML frontmatter) or `.md` for agents/
 ```text
 Plan /new-project  →  fetch preset into .cursor/rules/
        ↓
- /feature-start    →  git branch → requirements → docs → TDD → critics → manual QA
+ /feature-start    →  git branch → requirements → docs → TDD → critics → triage + QA
        ↓
  /commit-push      →  perfect commit (code+tests+docs+issue) → push
        ↓
@@ -70,14 +70,18 @@ Alternatively use Cursor **Add Rule → Remote Rule (GitHub)** for this repo onc
 | Command | Purpose |
 |---------|---------|
 | `/new-project` | Plan preset → fetch rules → scaffold (incl. day-1 passing test) → root README + `docs/` |
-| `/feature-start` | Full feature/fix loop (requirements, design docs, TDD, multi-critic, QA handoff) |
+| `/feature-start` | Full feature/fix loop (requirements, design docs, TDD, multi-critic, review triage, QA handoff) |
 | `/commit-push` | Perfect commit (code+tests+docs+issue) or `--simple` bypass; push |
 | `/sync-rules` | Refresh rules/agents/commands from this repo |
 | `/init-planning` *(opt-in)* | One-time setup: install planning rules into a **private** home repo and fill placeholders (asks for any values not supplied) |
 | `/plan-day` *(opt-in)* | Review cross-project items (incl. personal chores) → prioritize → **triage into agent vs human tasks** → hand back your ordered task list |
 | `/start-day` *(opt-in)* | Run the agent queue; as agents finish, inject the induced human review/deploy tasks into your list |
+| `/business-iterate` *(invoke only)* | Business idea lane: implement on `feature/business-ideas/…` under the project rules, without the developer ceremony |
+| `/business-finalize` *(invoke only)* | Open a dev-review PR for that branch (tests may be red; promotion to production stays a developer change) |
 
 Daily planning is **opt-in** (not installed by bootstrap): `/plan-day` + `/start-day` are driven by the tool-agnostic `daily-planning.mdc` protocol and the `backlog-sources.mdc` config. Each **item** (a GitHub/Linear issue, or a personal chore) is triaged into executor-typed **tasks** (`agent` / `agent-assist` / `human`), producing an **agent queue** and your **ordered human task list**; the scarce resource is your day, so agent work is only scheduled when you can absorb the review/deploy it induces. Plans and personal items live in a **private** remote home repo so the separate, project-less planning and execution sessions can hand off. Run `/init-planning` once to install the two rules + commands and fill their placeholders (backlog repos, home repo, store, budget); it prompts for anything you don't pass inline.
+
+`/business-iterate` and `/business-finalize` ship with the other commands and do nothing until someone invokes them. They are the business idea lane. `/feature-start` is unchanged.
 
 ### Feature loop (summary)
 
@@ -87,7 +91,7 @@ Daily planning is **opt-in** (not installed by bootstrap): `/plan-day` + `/start
 4. Red → green TDD per `testing.mdc`.
 5. Verify: max **3** fix-and-rerun cycles, then human intervention.
 6. Multi-critic in parallel; max **3** blocker fix cycles.
-7. Manual QA; list docs touched; commit only with `/commit-push` (issue link; `--simple` for trivial).
+7. Manual QA plus **review triage** (Must review vs Safe to skim); list docs touched; commit only with `/commit-push` (issue link; `--simple` for trivial). The pull-request body carries the same triage.
 
 ---
 
@@ -203,13 +207,15 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 
 **Agents:** `functional-verifier`, `security-auditor`, `qa-edgecase-verifier`, `architecture-linter`, `test-coverage-auditor`
 
-**Commands:** `new-project`, `feature-start`, `commit-push`, `sync-rules`, `init-planning`, `plan-day`, `start-day`
+**Commands:** `new-project`, `feature-start`, `commit-push`, `sync-rules`, `init-planning`, `plan-day`, `start-day`, `business-iterate`, `business-finalize`
+
+`/business-iterate` and `/business-finalize` apply only when invoked. Projects without a business team keep using `/feature-start`.
 
 ---
 
 ## Design notes
 
-See [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/decisions.md) for layout rationale and recorded decisions (documentation protocol, perfect commit, day-one tests, modular presets).
+See [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/decisions.md) for layout rationale and recorded decisions (documentation protocol, perfect commit, day-one tests, modular presets, review triage, business idea lane, slog / no Wire, Biome on Vite).
 
 Short reminders:
 

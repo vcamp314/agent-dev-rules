@@ -8,6 +8,7 @@ Apply these Go craft rules for backend services. Pair with code-craft and the re
 
 - Prefer clear, idiomatic Go. Pin the Go version in `go.mod` / Dockerfile.
 - Format with `gofmt` / `goimports`; lint with `golangci-lint` when those tools are set up for the service.
+- Log with stdlib `log/slog`. Use zerolog only when slog is insufficient for that service, or the service already uses zerolog.
 - Prefer testify (`require` / `assert`) when adding tests.
 - Time: stdlib `time` is the default; introduce richer time helpers only if the service needs them.
 - Prefer UUID v7 for new persistent entity IDs (see code-craft).

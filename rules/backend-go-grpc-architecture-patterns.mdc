@@ -74,9 +74,7 @@ grpcserver/                          # e.g. backend/bserver (or domain name such
 │   │   ├── errors.go                # Domain / feature-level errors
 │   │   ├── config.go                # Feature-specific configuration types (when needed)
 │   │   ├── repository.go            # Optional: only if persistence is needed
-│   │   ├── dto.go / entity.go       # Optional: split out when types grow
-│   │   ├── injector.go              # Optional: Wire when DI complexity warrants it
-│   │   └── injector_gen.go          # Optional: generated Wire (do not hand-edit)
+│   │   └── dto.go / entity.go       # Optional: split out when types grow
 │   ├── usecases/                    # Optional: rare cross-domain orchestration (see backend-usecases)
 │   │   └── <name>/
 │   │       ├── endpoints.go         # gRPC service impl for this product action
@@ -105,9 +103,9 @@ docker-compose.dev.yml               # Optional: air/hot-reload overrides
     - `features/<name>/`: gRPC endpoints, feature-owned services, optional repositories, feature errors/config
     - `usecases/<name>/`: optional cross-domain orchestration RPCs (see backend-usecases)
     - `common/`: helpers only — never domain workflows
-    - `monitoring/`, `tools/`, Wire: add when needed, not by default
+    - `monitoring/`, `tools/`: add when needed, not by default
   - If any file in a feature gets long (> 300 lines), split by clear responsibility within the same package — still prefer flat files over inventing layer folders.
-  - DI: manual constructors in `cmd/server` or `internal/server` are the default — wire integrations, shared `services/`, feature services, and optional usecases into gRPC servers. Introduce Google Wire when wiring becomes painful.
+  - DI: manual constructors in `cmd/server` or `internal/server` are the default — construct integrations, shared `services/`, feature services, and optional usecases and pass them into gRPC servers. Do not introduce Google Wire unless this service already uses it. If generated Wire output is already present, do not hand-edit it.
   - When SQL is needed: prefer sqlc (see go-core); put migrations/queries/sqlc under `internal/database/`; do not hand-edit sqlc output.
   - Soft-delete and RLS: only when the domain/tenancy model requires them.
   - Prefer extracting bootstrap out of `main` into `internal/server` once startup logic grows past simple listen/register/serve.
@@ -151,8 +149,7 @@ return status.Errorf(codes.NotFound, "room not found")
   - Messaging: NATS (`nats.go`; embedded `nats-server` for local/dev or tests) — used by chat-style fan-out, not required for every gRPC service
   - Browser clients: `improbable-eng/grpc-web` (or successor) when browsers must speak to the service without a separate gateway
   - Auth: JWT / Cognito / similar interceptors only if the service needs identity
-  - Observability: OpenTelemetry, richer logging (e.g. zerolog)
-  - DI: Google Wire when constructor graphs hurt
+  - Observability: OpenTelemetry when operational needs justify it. Logging: `log/slog` (see go-core); zerolog only if slog is insufficient or the service already uses it
   - Mocks: uber-go/mock when interface mocking helps
   - Local reload: air
   - Task runner: Just (only if the service already uses it)
@@ -188,7 +185,7 @@ return status.Errorf(codes.NotFound, "room not found")
 
 ### DI, Mocks, and Testing
   - Default wiring: construct integrations → services → endpoint servers in `cmd/server` or `internal/server` with plain constructors.
-  - Add Wire only when complexity warrants it; do not hand-edit generated Wire output.
+  - Do not add Google Wire. If the service already has generated Wire output, do not hand-edit it.
   - Follow `testing.mdc` for what to test at each level. Tooling: see go-core (testify; bufconn / in-process gRPC for L2).
   - Unit-test single-job helpers (`*_test.go` colocated); cover orchestrators and RPC contracts via L2 (`testing/integration_tests/` + `test_utils/` when useful) or E2E.
   - Prefer injectable integrations so L2 can swap fakes/embedded servers. Avoid brittle `time.Sleep`-based synchronization when wait/signal patterns are practical.
@@ -203,9 +200,9 @@ return status.Errorf(codes.NotFound, "room not found")
 
   Key Conventions
   1. Organize by feature; keep layered responsibilities in flat files (`endpoints`, `service`, optional `repository`, `errors`, `config`).
-  2. Use manual DI by default; Wire only when complexity warrants it. **Collaborator ports required**; service-as-port situational — see go-core.
+  2. Use manual DI. Do not introduce Google Wire unless this service already uses it. **Collaborator ports required**; service-as-port situational — see go-core.
   3. Put SQL under `internal/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain RPCs under `usecases/`.
   4. Never hand-edit generated protobuf or sqlc output.
   5. Map domain errors to gRPC `status`/`codes` at the endpoint boundary; follow go-core for `%w` / `errors.Is` internally.
   6. Embed `Unimplemented*Server`; handle stream/context cancellation explicitly.
-  7. Treat NATS/grpc-web/auth/OTel/Wire/Just/SQL and `usecases/` as opt-in — required only when the service’s role needs them.
+  7. Treat NATS/grpc-web/auth/OTel/Just/SQL and `usecases/` as opt-in — required only when the service’s role needs them. Do not introduce Google Wire unless this service already uses it.
