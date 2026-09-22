@@ -92,6 +92,29 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
 
 ---
 
+### Triage items into executor-typed tasks (agent queue + human list)
+
+- **Context:** Planning was extended to cover non-code work (chores, paperwork, finances) that agents can't do, and even code items imply human-only steps (code review, QA/deploy). A flat "issue shortlist" couldn't express "this issue → some agent work + some human work", nor keep the human's day realistic once agents start generating reviews.
+- **Chosen:**
+  - Model an **item** (a code issue, or a personal chore) as triaging into one or more **tasks**, each with an `executor` (`agent` | `agent-assist` | `human`), `depends_on`, `status`, and an inherited priority. Pipelines per item `kind` live in `backlog-sources.mdc` (`triage.pipelines`).
+  - Code pipeline: `implement (agent) → auto_review (agent, via multi-critic) → human_review (human) → apply_fixes (agent) → qa_deploy (human)`, so automated critics run before the human review task is emitted.
+  - Planning produces **two queues**: an **agent queue** (bounded by `agent_concurrency`) and the **human's single ordered task list** (bounded by `human_budget`). `/plan-day` ends by handing the user their ordered list.
+  - **The human day is the scarce resource:** `human_budget` bounds the whole human list, and selecting agent work must **reserve** budget for the `human_review`/`qa_deploy` it induces (`reserve_for_induced_reviews`). Agent time is not charged to the human budget.
+  - The human list is a **projection** re-rendered from per-task status (source of truth on each item via `task_storage` sub-issues/checklist), shown in **actionable-now** vs **expected-later** bands. As agents finish, `/start-day` materializes the induced human task and re-renders (pull, no daemon).
+  - Personal items are **stored as issues in the private `home_repo`** (a `manual` source); chores typed into `/plan-day` are persisted there on approval (deduped), so they survive to later days.
+  - **Scalability seam (deferred):** task `assignee` (today `agent` | `human:me`) + per-item `visibility`, all private by default — multi-person and public/private split can be layered on without changing the item→task model.
+- **Alternatives rejected:**
+  - **Flat issue shortlist with a per-issue human/agent flag** — can't represent one issue producing both agent and human work, nor the review/deploy that agent work induces.
+  - **Dispatch every task through `feature-workflow`** — chores and human code review can't run TDD/critics; `human` tasks must never be dispatched to a coding worker.
+  - **Bound the day by agent concurrency alone** — ignores that each dispatched feature manufactures human review/deploy load; the day would blow up even though "agents did the work".
+  - **Push-update the human list from finishing agents** — fragile across ephemeral, isolated agents; re-render as a projection on demand (pull) instead.
+  - **Personal tasks in committed files as the primary backlog** — lose native open/closed lifecycle, query, comments, and per-item concurrency; keep files only for recurring templates if needed.
+  - **Build multi-person now** — introduces public/private data separation prematurely; defer behind the `assignee`/`visibility` seam.
+- **Consequences:** `home_repo` must be **private** (holds finance/paperwork). `capacity` config generalized from `daily_review_deploy_budget` to `human_budget` + `agent_concurrency` + `reserve_for_induced_reviews`; estimator semantics vary by executor. Per-item tasks are stored as sub-issues/checklists; the day-plan issue is a re-rendered view, not the source of truth.
+- **Revisit if:** Task volume outgrows sub-issues/checklists (consider a projects board); or a real-time updater replaces pull-refresh; or multi-person collaboration is prioritized (activate the `assignee`/`visibility` seam with a public/private policy).
+
+---
+
 ### This repo’s own docs
 
 - **Context:** After adding `documentation.mdc`, agent-dev-rules itself had no `docs/` capturing the above deliberation.
