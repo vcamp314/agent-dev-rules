@@ -55,6 +55,7 @@ Do **not** put the full architecture pack in User Rules (context bloat / wrong-s
    ```bash
    mkdir -p ~/.cursor/commands
    cp commands/*.md ~/.cursor/commands/
+   rm -f ~/.cursor/commands/submit.md
    ```
 3. **Critic agents (global):**
    ```bash
@@ -76,14 +77,16 @@ Alternatively use Cursor **Add Rule → Remote Rule (GitHub)** for this repo onc
 | `/init-planning` *(opt-in)* | One-time setup: install planning rules into a **private** home repo and fill placeholders (asks for any values not supplied) |
 | `/plan-day` *(opt-in)* | Review cross-project items (incl. personal chores) → prioritize → **triage into agent vs human tasks** → hand back your ordered task list |
 | `/start-day` *(opt-in)* | Run the agent queue; as agents finish, inject the induced human review/deploy tasks into your list |
-| `/business-iterate` *(invoke only)* | Business idea lane: implement on `feature/business-ideas/…` under the project rules, without the developer ceremony |
-| `/business-finalize` *(invoke only)* | Open a dev-review PR for that branch (tests may be red; promotion to production stays a developer change) |
+| `/standardize-pr` | Raise any existing pull request to the developer bar (tests, critic fix loop, updated triage) |
+| `/setup-business` | One-time, on a business machine: clone a repo URL, install the local always-on idea rule, and leave only `/submit` and `/feature-start` |
 
 Daily planning is **opt-in** (not installed by bootstrap): `/plan-day` + `/start-day` are driven by the tool-agnostic `daily-planning.mdc` protocol and the `backlog-sources.mdc` config. Each **item** (a GitHub/Linear issue, or a personal chore) is triaged into executor-typed **tasks** (`agent` / `agent-assist` / `human`), producing an **agent queue** and your **ordered human task list**; the scarce resource is your day, so agent work is only scheduled when you can absorb the review/deploy it induces. Plans and personal items live in a **private** remote home repo so the separate, project-less planning and execution sessions can hand off. Run `/init-planning` once to install the two rules + commands and fill their placeholders (backlog repos, home repo, store, budget); it prompts for anything you don't pass inline.
 
-`/business-iterate` and `/business-finalize` ship with the other commands and do nothing until someone invokes them. They are the business idea lane. `/feature-start` is unchanged.
+`/feature-start` is the only way into the developer ceremony. A plain prompt does not enter it.
 
-### Feature loop (summary)
+**Business machine** (after `/setup-business <repo-url>`): only `/submit` and `/feature-start`. A plain prompt stays on `feature/business-ideas/…` under the local always-on rule and does not commit. `/submit` writes idea-stage notes, runs critics once without fixing, and opens the review pull request. `/feature-start` is optional; it still ends by telling them to `/submit`. They do not get `/commit-push`. The always-on rule is not committed.
+
+### Feature loop (developer, `/feature-start` only)
 
 1. Git prep (untracked local files allowed; stop only on real conflicts).
 2. Requirements in two groups: **User-specified** vs **Inferred** (infer only sensible gaps); confirm before tests.
@@ -200,22 +203,23 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 | `backend-rust-grpc-architecture-patterns.mdc` | Rust Tonic gRPC service layout |
 | `bootstrap-select-rules.mdc` | Greenfield / preset selection (global User Rule) |
 | `documentation.mdc` | README + colocated/`docs/` placement; design decisions; keep docs in sync |
-| `feature-workflow.mdc` | Feature/fix TDD delivery protocol (includes design docs step) |
+| `feature-workflow.mdc` | Developer feature/fix protocol; runs only for `/feature-start` |
+| `business-team-experiments.mdc` | Business idea lane; not a preset — `/setup-business` copies it into one clone with `alwaysApply: true` and it stays uncommitted |
 | `multi-critic-protocol.mdc` | Parallel critic orchestration after green tests |
 | `daily-planning.mdc` | Opt-in daily task protocol: gather items → triage into agent/human tasks → budget the human day → dispatch + maintain the human list |
 | `backlog-sources.mdc` | Opt-in config for daily planning: sources, triage pipelines, priority/estimator, human-day capacity, remote plan store |
 
 **Agents:** `functional-verifier`, `security-auditor`, `qa-edgecase-verifier`, `architecture-linter`, `test-coverage-auditor`
 
-**Commands:** `new-project`, `feature-start`, `commit-push`, `sync-rules`, `init-planning`, `plan-day`, `start-day`, `business-iterate`, `business-finalize`
+**Commands:** `new-project`, `feature-start`, `commit-push`, `sync-rules`, `standardize-pr`, `setup-business`, `submit`, `init-planning`, `plan-day`, `start-day`
 
-`/business-iterate` and `/business-finalize` apply only when invoked. Projects without a business team keep using `/feature-start`.
+Developer install copies every command except `submit` (see install steps). `/setup-business` is what places `submit` on a business machine, together with `feature-start` only.
 
 ---
 
 ## Design notes
 
-See [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/decisions.md) for layout rationale and recorded decisions (documentation protocol, perfect commit, day-one tests, modular presets, review triage, business idea lane, slog / no Wire, Biome on Vite).
+See [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/decisions.md) for layout rationale and recorded decisions (documentation protocol, perfect commit, day-one tests, modular presets, review triage, business idea lane, `/standardize-pr`, slog / no Wire, Biome on Vite).
 
 Short reminders:
 

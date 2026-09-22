@@ -179,20 +179,25 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
 
 ---
 
-### Business idea lane as invoke-only commands
+### Business idea lane vs developer ceremony
 
-- **Context:** Some products have business contributors who should try ideas with an agent without the developer ceremony, while personal projects and normal engineering work keep `/feature-start`. Experiment code should not get its own folder shape, and it should not land on `main` by renaming files at review time.
+- **Context:** Some products have business contributors who should try ideas without the developer pauses, while engineers keep `/feature-start`. The same craft rules should apply. An idea must not land on `main` before an engineer raises it to that bar. An earlier cut used `/business-iterate` and `/business-finalize` as opt-in commands and told engineers to re-run `/feature-start` to promote.
 - **Chosen:**
-  - `/business-iterate` and `/business-finalize` apply only when invoked. They override `feature-workflow` pauses, critics, and the three-cycle stop. Installed architecture, craft, and testing rules still apply.
-  - Work happens on `feature/business-ideas/<topic>` branched from `main`, in the same folders `main` uses.
-  - Iterate runs tests, records failures, and continues. Finalize commits simply, pushes, and opens a pull request even when tests are red. The PR body includes review triage plus a handoff: merging is not promotion. A developer promotes wanted behavior later with `/feature-start`.
-  - `ci-github` stays GitHub Flow. No `develop` branch.
+  - `feature-workflow` runs only when `/feature-start` is invoked. A plain prompt does not enter it.
+  - `business-team-experiments.mdc` is not a preset. `/setup-business <repo-url>` copies it into one clone with `alwaysApply: true`, lists it in `.git/info/exclude`, and does not commit it. That machine's commands are `/submit` and `/feature-start` only.
+  - A plain prompt on that machine stays on `feature/business-ideas/<topic>` in the same folders as `main`, runs tests, records failures, and does not commit.
+  - `/submit` writes idea-stage assumptions, runs the five critics once without fixing, and opens the pull request even when tests are red. It refuses `main`. It never stages the always-on rule file.
+  - `/feature-start` on that machine still runs the full ceremony, then the handoff points at `/submit` instead of `/commit-push`.
+  - `/standardize-pr` is the engineer intake for any pull request: fix tests, critic fix loop, update triage. `/feature-start` is for work the engineer originates, or a rebuild.
+  - Developer install copies every command except `submit`. `ci-github` stays GitHub Flow. Protecting `main` on the product repo is an admin step, not part of setup.
 - **Alternatives rejected:**
-  - **Always-on experiment rule in every project** — personal projects have no business team; the developer protocol would change for them.
-  - **Local-only experiment folders rewritten at finalize** — the review diff becomes a move, and the architecture rules are not followed during the experiment.
-  - **No branch isolation, only a virtual label** — nothing stops the agent from editing production routes that then merge.
-- **Consequences:** Copying `commands/` into `~/.cursor/commands/` makes the commands available. Nothing in bootstrap or `/feature-start` runs them. A red business branch is a developer task at review time, not a blocked business session.
-- **Revisit if:** Several products need the experiment branch merged onto `main` behind a route prefix before a developer rewrites it; or business commits need the perfect-commit issue gate.
+  - **Commit the rule with `alwaysApply: false`, then gitignore it** — a committed file stays tracked; a local flip to `alwaysApply: true` can merge and turn the lane on for every developer.
+  - **Delete developer workflow rules on the business clone** — stack rules must stay so the agent still follows the real layout; `skip-worktree` deletions are easy to commit by mistake.
+  - **`/commit-push` on the business machine** — two finish commands. `/submit` is the only one.
+  - **Re-run `/feature-start` to receive a business pull request** — the diff already exists. `/standardize-pr` raises that diff.
+  - **Always-on rule inside the developer preset** — personal projects and engineers would be forced onto idea branches.
+- **Consequences:** Business iteration is a plain prompt. Engineers meet the result as a pull request. Red tests and unfixed critic blockers are that pull request's Must review until `/standardize-pr` runs.
+- **Revisit if:** Business accounts must not have write access to the product repo (use a fork and point `/submit` at it); or `/standardize-pr` should refuse product-choice blockers instead of stopping to ask.
 
 ---
 

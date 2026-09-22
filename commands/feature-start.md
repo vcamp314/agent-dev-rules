@@ -1,6 +1,6 @@
 # Feature start
 
-Execute the full feature/fix delivery protocol in `.cursor/rules/feature-workflow.mdc` (from agent-dev-rules). If that file is missing, fetch it from https://github.com/vcamp314/agent-dev-rules before continuing. Documentation placement: `.cursor/rules/documentation.mdc` (fetch with the workflow rules if missing).
+Execute the full feature/fix delivery protocol in `.cursor/rules/feature-workflow.mdc` (from agent-dev-rules). This command is the only entry to that protocol. If that file is missing, fetch it from https://github.com/vcamp314/agent-dev-rules before continuing. Documentation placement: `.cursor/rules/documentation.mdc` (fetch with the workflow rules if missing).
 
 ## Follow every step in order
 
@@ -12,6 +12,6 @@ Execute the full feature/fix delivery protocol in `.cursor/rules/feature-workflo
 6. **Green** — implement per project architecture rules; compose from leaves; keep docs aligned if decisions change.
 7. **Verify** — at most **3** fix-and-rerun cycles after first red→green; then escalate to the user (no multi-critic if still red).
 8. **Multi-critic** — only when green; follow `multi-critic-protocol.mdc` (parallel critics; max 3 blocker fix cycles); pass approved requirements + design-doc pointers.
-9. **Hand off** — manual QA summary; list docs created/updated; emit **Review triage** (At-a-glance, Must review, Safe to skim, Concerns & residual risk) per `feature-workflow.mdc`; **do not commit** until `/commit-push` (perfect commit + issue unless `--simple`). The same triage goes in the pull-request body.
+9. **Hand off** — manual QA summary; list docs created/updated; emit **Review triage** (At-a-glance, Must review, Safe to skim, Concerns & residual risk) per `feature-workflow.mdc`; **do not commit**. On a developer machine, wait for `/commit-push` (perfect commit + issue unless `--simple`); the same triage goes in the pull-request body. When `business-team-experiments.mdc` is installed, tell the user to run `/submit` instead of `/commit-push`, and do not push `main`.
 
 Treat the rest of the user’s message after this command as the feature/fix request.

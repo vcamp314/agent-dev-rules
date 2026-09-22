@@ -1,12 +1,12 @@
 ---
-description: feature/fix delivery — git prep, requirements, design docs, TDD/BDD, bounded verify, multi-critic, review triage, manual QA handoff
+description: developer feature/fix delivery — only when /feature-start is invoked; requirements, design docs, TDD, critics, review triage, QA handoff
 alwaysApply: false
 ---
 # Feature / fix development protocol
 
-Apply when implementing a feature or bug fix (especially when the user runs `/feature-start`). Do not skip steps. Do not commit until the user runs `/commit-push` or explicitly asks to commit. Documentation placement and templates: follow `documentation.mdc`.
+Apply **only** when the user invoked `/feature-start`. A plain prompt does not enter this protocol. When it applies, do not skip steps. Do not commit until the user runs `/commit-push` or explicitly asks to commit. Documentation placement and templates: follow `documentation.mdc`.
 
-This is the developer path. When the user invoked `/business-iterate` or `/business-finalize`, those commands override this protocol (no confirmation pauses, no critic loop, no three-cycle stop). Architecture, craft, and testing rules still apply on that path.
+This is the developer path. If `business-team-experiments.mdc` is installed in this project, that rule still forbids pushing or merging `main`, and the handoff in step 9 points at `/submit` instead of `/commit-push`. The ceremony in this file still runs.
 
 ## Ordered steps
 
@@ -71,7 +71,10 @@ Only after tests are green. Follow `multi-critic-protocol.mdc`. Pass the origina
 
 ### 9. Hand off
 
-Summarize for user **manual QA** (what to click/run, which commands). List **docs created/updated** (paths). Emit **Review triage** below. Do **not** commit or push until `/commit-push` (perfect-commit path: implementation + tests + docs + GitHub issue link; user may `/commit-push --simple` for trivial work). The pull-request body should carry the same triage sections.
+Summarize for user **manual QA** (what to click/run, which commands). List **docs created/updated** (paths). Emit **Review triage** below. Do **not** commit or push yet.
+
+- Developer machine: wait for `/commit-push` (perfect-commit path: implementation + tests + docs + GitHub issue link; user may `/commit-push --simple` for trivial work). The pull-request body should carry the same triage sections.
+- Business machine (`business-team-experiments.mdc` installed): tell the user to run `/submit`. Do not mention `/commit-push`. Do not push `main`.
 
 ### Review triage
 

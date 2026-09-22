@@ -1,0 +1,34 @@
+---
+description: business idea lane — always on after /setup-business; plain prompts stay off main, /feature-start still runs the developer ceremony
+alwaysApply: true
+---
+# Business team experiments
+
+Installed only by `/setup-business` into this clone. Not part of any developer preset. Do not commit this file. Do not stage `.cursor/rules/business-team-experiments.mdc`.
+
+Architecture, craft, and testing rules in this project's `.cursor/rules/` still apply. This file decides the lane.
+
+## Plain prompt
+
+When the user did not invoke `/feature-start`:
+
+1. Before any edit, `git fetch` the latest `main`.
+2. If the current branch is `feature/business-ideas/<topic>`, stay on it. Integrate `main` into this branch. Do not check out `main` to do the work.
+3. Otherwise create and checkout `feature/business-ideas/<short-kebab>` from `main`. Reuse an existing topic name when the user is continuing that idea.
+4. Untracked local files are allowed. Stop only on a real merge, rebase, or checkout conflict.
+5. Do not follow `feature-workflow`. No requirements confirmation, no design-doc gate, no multi-critic fix loop, no three-cycle stop.
+6. Write or update the tests the stack rules call for. Run them. If they fail, record the command and the failure, then keep going.
+7. Do not commit, push, or open a pull request. That is `/submit`.
+8. Do not push or merge `main`.
+
+Reply with what changed, where it lives, which tests ran, and any failures. Point them at `/submit` when they want a developer to review, and at `/feature-start` only if they want the full developer ceremony first.
+
+## /feature-start
+
+Follow `feature-workflow` for this session, including its pauses and the critic fix loop. The branch may be `feature/…` or `fix/…`.
+
+Still do not push or merge `main`. At the handoff, tell the user to run `/submit`. Do not tell them to run `/commit-push`.
+
+## /submit
+
+`/submit` is the only commit, push, and pull-request step. It may run on `feature/business-ideas/…`, `feature/…`, or `fix/…`. It must refuse `main`.
