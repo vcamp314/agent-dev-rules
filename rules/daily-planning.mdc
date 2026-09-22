@@ -1,66 +1,79 @@
 ---
-description: daily task-management protocol — review cross-project backlog, prioritize by urgency×impact (+secondary text scan), capacity-bound a same-day-deployable shortlist, iterate to approval, then dispatch bounded workers per task
+description: daily task-management protocol — gather cross-project items, triage each into executor-typed tasks (agent vs human), prioritize by urgency×impact, budget the human day (reserving for induced reviews/deploys), dispatch the agent queue, and maintain the human's ordered task list as agents finish
 alwaysApply: false
 ---
 # Daily planning & dispatch protocol
 
 Tool-agnostic procedure for two linked activities:
 
-- **Plan** — review backlog(s), propose a prioritized, capacity-bounded shortlist for the day, iterate with the user, and record the approved shortlist.
-- **Dispatch** — read the approved shortlist and put agents to work on its items.
+- **Plan** — gather items, triage each into executor-typed tasks, propose the **agent queue** and the **human's ordered task list** for the day (budgeted), iterate to approval, and record the plan.
+- **Dispatch** — run the agent queue; as agents finish, inject the human review/deploy tasks they generate into the human list at the right priority.
 
-All *configuration* (sources, priority weights, estimator, budget, store) comes from `backlog-sources.mdc` and its overrides — read it first and honor its precedence (inline prompt > project override > central default). The two activities are separate sessions and may run on different machines/agents with no shared local state; they communicate **only** through the configured **plan store**.
+All *configuration* (sources, triage pipelines, priority, estimator, capacity, store) comes from `backlog-sources.mdc` and its overrides — read it first and honor precedence (inline prompt > project override > central default). Planning and dispatch are separate, ephemeral, project-less sessions with no shared local state; they communicate **only** through the configured **plan store**.
+
+Key model (see `backlog-sources.mdc`): one **item** triages into one or more **tasks**, each with an `executor` (`agent` | `agent-assist` | `human`) and `depends_on`. The scarce resource is the **human day**, so agent work is only worth scheduling if the human can absorb the review/deploy it induces.
 
 ---
 
 ## Phase A — Plan
 
 ### A1. Load config
-Resolve effective config from `backlog-sources.mdc` (+ overrides + any inline instructions in this request). Echo the key choices actually used (sources, budget, store) so the user can correct them early.
+Resolve effective config (+ overrides + inline instructions). Echo the key choices actually used (sources, human_budget, agent_concurrency, store).
 
-### A2. Gather backlog
-Fetch open items from **every** configured source and merge into the normalized shape (`Source contract`). For GitHub, cover **all** configured repos (cross-project). De-duplicate by `url`. If a source is unreachable, report it and continue with the rest.
+### A2. Gather items
+Fetch open items from **every** configured source and merge into the normalized item shape. Cover **all** GitHub repos (cross-project) and the `manual` personal source. De-duplicate by `url`. If a source is unreachable, report it and continue.
 
 ### A3. Score priority (urgency × impact)
-For each item compute `urgency × impact` from **structured** signals first (labels, due date, milestone, age, reactions, linked PRs). Then apply the **secondary text scan** as a raise-only safety net (see `Priority model`): quote the phrase and record the adjustment when text lifts a tier; never lower a labeled priority; honor negation. Keep a one-line rationale per item.
+Score each item from **structured** signals, then apply the **raise-only** text scan (quote the phrase; never lower a labeled priority; honor negation). One-line rationale per item.
 
-### A4. Estimate human review→deploy effort
-For each candidate, run the configured `estimator` to guess the **human** effort to review, happy-case test locally, make adjustments, and deploy to the testing environment. Show the itemized estimate and note it is a conservative guess with stated assumptions.
+### A4. Triage items into tasks
+For each item, apply the `triage.pipeline` for its `kind` and refine to the item, producing executor-typed tasks with `depends_on`. Tasks **inherit** the item's score (+ `review_boost` for review/deploy). Keep it coarse (`max_tasks_per_item`); downstream tasks (exact review/QA) are templates that **materialize as upstream work completes**.
 
-### A5. Capacity-bound the shortlist
-Fill the shortlist greedily by priority until the summed human estimate reaches `capacity.daily_review_deploy_budget` (treat it as a **serial** human budget), leaving headroom so the whole shortlist can realistically deploy same-day. Respect `max_tasks` as a hard fallback. Items that don't fit stay in the backlog with a short "deferred: over budget" note.
+### A5. Estimate human effort per task
+Run the `estimator` for each **human** / **agent-assist** task (by executor). `agent` tasks cost no human budget. Show itemized estimates as conservative guesses with assumptions.
 
-### A6. Present the proposed plan
-Show an ordered shortlist: each item with source link, `urgency × impact` score + rationale, any text-scan flags (with quotes), and the effort estimate; then the running total vs budget and what was deferred and why.
+### A6. Build the two queues within budget
+- **Agent queue:** the `agent`/`agent-assist` tasks that are ready or will be, bounded by `agent_concurrency`.
+- **Human list:** ordered by priority, bounded by `human_budget` and `max_human_tasks`.
+- **Reserve for induced load:** when `reserve_for_induced_reviews`, a code item only enters the agent queue if its induced `human_review` + `qa_deploy` estimate also fits `human_budget` alongside the day's chores. Dispatching agent work is **not free** for the human. Items that don't fit are deferred with a short reason.
 
-### A7. Iterate
-Treat any further user input as prioritization/scoping context or config overrides (e.g. "must ship X", "drop repo B", "assume 6h", "use my bucket estimates"). Re-score/re-fill and re-present. Repeat until the user **explicitly approves**.
+### A7. Present the plan
+Show: the **agent queue** (what will be worked, with the human load each induces), then the **human ordered task list** in two bands — **actionable now** (chores + independent human work) and **expected later today** (reviews/deploys pending agent completion, in anticipated priority position). Include the running human total vs `human_budget` and what was deferred and why.
 
-### A8. Record the approved shortlist
-On approval, write the final shortlist to the configured **plan store** (default: a tracking issue in `home_repo` with a per-task checklist; alternatives: committed file, gist). Include for each task: source link, score, estimate, and rationale. The store is the single source of truth for dispatch. Report where it was written.
+### A8. Iterate
+Treat further input as prioritization/scoping/config overrides (e.g. "must ship X", "drop repo B", "assume 6h", "that's human-only"). Re-triage/re-budget and re-present until the user **explicitly approves**.
+
+### A9. Record the plan
+On approval:
+- Persist any new **personal items** typed in the prompt as issues in the private `home_repo` (labeled `task`), de-duping against existing open issues — unless flagged "today only".
+- Write per-item **tasks** to `task_storage` (sub-issues/checklist on each item).
+- Render the **human ordered task list** into the plan store (default: the `Day plan {date}` issue). This projection — not the agent's memory — is the source of truth handed to dispatch. Report where everything was written.
+- **End the response with the human's ordered task list** (what to do now), so the user leaves with a clear list while agents work.
 
 ---
 
 ## Phase B — Dispatch
 
-### B1. Load the approved shortlist
-Read it from the plan store (do not re-plan). If none exists for the target date, stop and tell the user to plan first.
+### B1. Load the plan
+Read today's plan/tasks from the store (do not re-plan). If none exists, stop and tell the user to run planning first.
 
-### B2. Dispatch one worker per task (bounded)
-For each not-yet-done task, start a worker to implement it, honoring a **concurrency cap** so review/deploy stays feasible. Each worker:
-- treats the linked backlog item as the task and follows the project's feature/fix protocol (`feature-workflow.mdc`): git prep → requirements (user-specified vs inferred) → docs → tests → implement → bounded verify → multi-critic when green;
-- **stops at the manual-QA / review handoff and does not commit** (commit stays a deliberate, separate step per `commit-push`), unless the user explicitly authorizes committing.
+### B2. Run the agent queue (bounded)
+Start workers only for `agent`/`agent-assist` tasks whose `depends_on` are satisfied, up to `agent_concurrency`. **Skip `human` tasks** — they belong to the human list, never dispatched to a coding worker. Each code worker follows `feature-workflow.mdc` (git prep → requirements → docs → tests → implement → bounded verify → **auto_review via multi-critic when green**) and **stops at the human_review handoff without committing** (commit stays with `commit-push` unless explicitly authorized). `agent-assist` workers produce a draft for human approval.
 
-### B3. Track status
-As each worker finishes (or blocks), update the task's status in the plan store (e.g. check the box / note the branch or blocker) so progress is visible across sessions.
+### B3. Inject induced human tasks & re-render
+When a worker finishes (or blocks), update its task status at the source of truth (`task_storage`), then **materialize the induced human task** — e.g. `human_review` for completed code (with branch/diff link), or `qa_deploy` after review — and **re-render the human ordered task list** in the plan store, inserting the new task at its inherited-priority (+`review_boost`) position. A blocked agent task converts into a human task describing the blocker.
 
-### B4. Summarize
-Report per task: what was done, where the work lives (branch/change), what human review + deploy step remains, and anything blocked needing intervention. Do not claim a task is deployed — deployment stays a human step within the day's budget.
+### B4. Refresh (pull)
+The human list is a **projection**; there is no long-lived daemon. Re-render it on each planning/dispatch invocation (and whenever the user asks to refresh) from current task statuses, keeping the **actionable now** / **expected later** split.
+
+### B5. Summarize
+Report per task: what was done, where the work lives (branch/change), the induced human review/deploy now on the list, and anything blocked. Do not claim a task is deployed — QA/deploy stays a human step within `human_budget`.
 
 ---
 
 ## Guardrails
-- Cross-project by design: never assume a single project is in context; the plan store is the durable hand-off.
-- Priority stays explainable: always show why an item ranked where it did.
-- Estimates are guesses, not commitments; keep them conservative and labeled.
-- Respect the budget: prefer fewer, deployable tasks over an over-committed day.
+- Cross-project & private by default: never assume a single project is in context; the private plan store is the durable hand-off.
+- The human day is the budget: never fill the agent queue without reserving for the reviews/deploys it induces.
+- Explainable: always show why an item ranked where it did and why it split into those tasks.
+- Estimates are conservative guesses, not commitments.
+- Never dispatch `human` tasks to an agent; surface them on the human list instead.
