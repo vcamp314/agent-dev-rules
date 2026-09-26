@@ -1,0 +1,18 @@
+---
+description: library picks for Go HTTP services — not folder layout or craft
+alwaysApply: false
+---
+# Stack: Go HTTP
+
+Package choices only. Trees and seams live in `go-core` / `backend-go-http-architecture-patterns`. Attach with the Go HTTP preset.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| HTTP framework | Echo v4 (`labstack/echo`) | |
+| SQL driver | pgx/v5 via `database/sql` | Prefer over `lib/pq` for new PostgreSQL work |
+| SQL codegen | sqlc | Do not hand-edit generated output |
+| Migrations | golang-migrate | When the service uses SQL |
+| Request validation | go-playground/validator | When checks grow past simple field tests |
+| Tests | testify (`require` / `assert`) | L2 HTTP: `net/http/httptest` (+ Echo helpers as needed) |
+| Lint | golangci-lint | When set up for the service |
+| Logging | `log/slog` | Do not introduce zerolog or Google Wire on new services |

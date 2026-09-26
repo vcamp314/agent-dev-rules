@@ -23,7 +23,7 @@ Include all of:
 1. Original user task
 2. **Approved** requirements, labeled **User-specified** vs **accepted Inferred** (omit rejected inferences)
 3. `git diff` vs branch base and/or changed file paths
-4. Pointers to relevant project rules under `.cursor/rules/` (especially `testing.mdc`, stack architecture, `code-craft`)
+4. Pointers to relevant project rules under `.cursor/rules/` (especially `testing.mdc`, architecture/craft, **installed `stack-*.mdc` library picks**, `code-craft`)
 
 ## Aggregate and fix
 

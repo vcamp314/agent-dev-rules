@@ -4,7 +4,7 @@ alwaysApply: false
 ---
   You are an expert in Python, FastAPI, and scalable API development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
 
-  Pair with: code-craft, http-api-contract, and backend-usecases (when cross-domain orchestration applies). Include `testing` when writing automated tests.
+  Pair with: code-craft, `stack-python-fastapi` (library picks), http-api-contract, and backend-usecases (when cross-domain orchestration applies). Include `testing` when writing automated tests.
 
 ### Key Principles
   - Write concise, technical Python code (see also code-craft).
@@ -27,10 +27,10 @@ alwaysApply: false
 
 ### Python/FastAPI
   - Use def for pure functions and async def for asynchronous operations.
-  - Use type hints for all function signatures (including returns). Prefer Pydantic models over raw dictionaries for input validation and response schemas.
-  - Prefer mypy (or equivalent) in CI when the service is typed; avoid `Any` and untyped dicts in new code except at rare boundaries — narrow into models/TypedDicts immediately.
+  - Use typed request/response models from the stack schema library (see `stack-python-fastapi`; example: Pydantic — confirm there).
+  - Prefer the stack type-checker in CI when the service is typed (example: mypy — confirm in `stack-python-fastapi`); avoid `Any` and untyped dicts in new code except at rare boundaries — narrow into models/TypedDicts immediately.
   - Prefer `typing.Protocol` / ABCs for injectable seams instead of untyped callables.
-  - Use ruff for linting/formatting and mypy for type checks
+  - Use ruff/mypy (or the stack equivalents): see `stack-python-fastapi` (confirm the actual lint/type tools there).
   - Prefer UUID v7 for IDs (see code-craft / http-api-contract).
   - When this service lives in a polyglot monorepo, place it under `backend/<service>/` (see monorepo architecture rules). Keep the internal module layout below inside that service folder; compose stays at the repo root.
 
@@ -69,7 +69,7 @@ fastapi-project/                          # e.g. backend/aserver when in a monor
 │   │   ├── <feature>/                    # e.g. auth, user, posts
 │   │   │   ├── router.py
 │   │   │   ├── router_test.py
-│   │   │   ├── schemas.py                # Pydantic request/response models
+│   │   │   ├── schemas.py                # request/response models
 │   │   │   ├── dependencies.py
 │   │   │   ├── config.py                 # Feature-local configs
 │   │   │   ├── constants.py
@@ -134,7 +134,7 @@ fastapi-project/                          # e.g. backend/aserver when in a monor
 ### Testing
   - Follow `testing.mdc` for E2E / L1 / L2 / unit level selection (unit-test leaves, not orchestrators).
   - Unit: **pytest**; colocated `*_test.py` next to the code under test.
-  - L2 HTTP: `httpx.AsyncClient` with FastAPI/`ASGI` (or Starlette `TestClient`) for endpoint contracts and edge cases.
+  - L2 HTTP: in-process client against the app for endpoint contracts and edge cases (example: `httpx.AsyncClient` — confirm in `stack-python-fastapi`).
   - L2 workers: invoke job functions with fakes for clocks/notifiers; assert outcomes.
   - Fake at integration boundaries for L2; do not unit-test multi-step service entrypoints with heavy mocks of every collaborator.
 
@@ -149,17 +149,11 @@ fastapi-project/                          # e.g. backend/aserver when in a monor
     - Use custom error types or error factories for consistent error handling.
 
 ### Dependencies
-  - Use uv for dependency management
-  - FastAPI
-  - Pydantic v2
-  - Async database libraries like asyncpg or aiomysql
-  - SQLAlchemy 2.0 (if using ORM features)
-  - pytest (unit / L2)
-  - httpx (L2 HTTP client against the app)
+  - Library picks: see `stack-python-fastapi`.
   - UUID v7 (uuid7) for primary keys / public identifiers (see code-craft)
 
 ### FastAPI-Specific Guidelines
-  - Use functional components (plain functions) and Pydantic models for input validation and response schemas.
+  - Use functional components (plain functions) and the stack schema models for input validation and response schemas (example: Pydantic models — confirm in `stack-python-fastapi`).
   - Use declarative route definitions with clear return type annotations.
   - Follow http-api-contract for route shape (`/<audience>/v1/...`).
   - Keep routers thin: parse/validate → call feature or usecase service → map errors to HTTP.
@@ -169,12 +163,12 @@ fastapi-project/                          # e.g. backend/aserver when in a monor
   - Optimize for performance using async functions for I/O-bound tasks, caching strategies, and lazy loading.
   - Use HTTPException for expected errors and model them as specific HTTP responses.
   - Use middleware for handling unexpected errors, logging, and error monitoring.
-  - Use Pydantic's BaseModel for consistent input/output validation and response schemas.
+  - Use the stack schema library's model type for consistent input/output validation and response schemas (example: Pydantic `BaseModel` — confirm in `stack-python-fastapi`).
 
 ### Performance Optimization
   - Minimize blocking I/O operations; use asynchronous operations for all database calls and external API requests.
   - Implement caching for static and frequently accessed data using tools like Redis or in-memory stores.
-  - Optimize data serialization and deserialization with Pydantic.
+  - Optimize data serialization and deserialization with the stack schema library (example: Pydantic — confirm in `stack-python-fastapi`).
   - Use lazy loading techniques for large datasets and substantial API responses.
 
   Key Conventions

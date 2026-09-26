@@ -1,10 +1,10 @@
 ---
-description: TypeScript/React frontend core (features, widgets, apps/ layout, Tailwind)
+description: TypeScript/React frontend core (features, widgets, apps/ layout)
 alwaysApply: false
 ---
-You are an expert in TypeScript, Vite, React and Tailwind. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
+You are an expert in TypeScript and React. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
 
-Pair with: code-craft. Attach frontend-http-api when calling HTTP APIs; frontend-protobuf-gen when consuming `shared/gen/pb`; frontend-rust-wasm (plus rust-core) when the package has `crates/` + WASM engines; frontend-testing (plus testing) when writing automated tests.
+Pair with: code-craft and `stack-frontend-react`. Attach frontend-http-api + `stack-frontend-http` when calling HTTP APIs; frontend-protobuf-gen when consuming `shared/gen/pb`; frontend-rust-wasm (plus rust-core and `stack-frontend-wasm`) when the package has `crates/` + WASM engines; frontend-testing (plus testing) when writing automated tests.
 
 ### Where these paths live
 
@@ -49,7 +49,7 @@ Pair with: code-craft. Attach frontend-http-api when calling HTTP APIs; frontend
 │       ├── utils/
 │       └── index.ts
 └── apps/                        # Thin platform shells (always; start with web)
-    ├── web/                     # Vite/React — web-specific config/infra (+ optional web-only src/)
+    ├── web/                     # web-specific config/infra (+ optional web-only src/)
     ├── desktop/                 # Electron — when needed
     └── mobile/                  # React Native / Expo — when needed
 ```
@@ -109,13 +109,13 @@ Pair with: code-craft. Attach frontend-http-api when calling HTTP APIs; frontend
 - Avoid enums; use objects or maps instead.
 - Prefer strict TypeScript (`strict` in tsconfig) when setting up or touching compiler options.
 - Avoid `any`. Prefer real types from the codebase, generics, or generated clients.
-- When a value is truly untyped (e.g. external JSON before parse), prefer `unknown` and narrow with type guards / schema validation (e.g. valibot) — do not use `any` as a shortcut.
+- When a value is truly untyped (e.g. external JSON before parse), prefer `unknown` and narrow with type guards / schema validation (example: valibot — confirm in `stack-frontend-http` when calling APIs) — do not use `any` as a shortcut.
 - Avoid type assertions with `as` or non-null `!` unless unavoidable and localized; prefer narrowing and proper return types.
 - Prefer typed props, hook return types, and API DTOs over loosely typed objects.
 
 ### Syntax and Formatting
 
-- New Vite apps: **Biome** for lint and format (one toolchain). If the repo already uses eslint (with or without Prettier), keep that toolchain. Do not run Biome and eslint on the same app.
+- Lint and format: see `stack-frontend-react` (example: Biome for new Vite apps — confirm there). Do not run two JS lint/format toolchains on the same app.
 - Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
 - Use declarative JSX, keeping JSX minimal and readable.
 - Pefer TypeScript without semi-colons at the end of the lines
@@ -123,17 +123,17 @@ Pair with: code-craft. Attach frontend-http-api when calling HTTP APIs; frontend
 
 ### UI and Styling
 
-- Use Tailwind for utility-based styling
+- Utility-based styling: see `stack-frontend-react` (example: Tailwind — confirm there).
 - Use a mobile-first approach
 - Prefer well-known icons with tooltips on hover over verbose headings
 
 
 ### Best Practices
 - State management:
-    - Where possible and reasonable, keep shareable UI state in the **URL as query parameters** (filters, selected ids, tabs, pagination, etc.) so refresh/share/back-forward work. Use whatever router the app already has (e.g. React Router, TanStack Router) and its search/query APIs — do not invent a second source of truth alongside the URL.
+    - Where possible and reasonable, keep shareable UI state in the **URL as query parameters** (filters, selected ids, tabs, pagination, etc.) so refresh/share/back-forward work. Use the app's existing router and its search/query APIs — do not invent a second source of truth alongside the URL.
     - Avoid introducing interdependency by managing state centrally -> pass by props, keeping nesting of components shallow where possible - only manage state centrally from shared folder that is needed everywhere in the app (e.g. api auth tokens, user info needed accross features etc.)
     - Consider using a tool to share state between conponents when we need to pass a state as a prop through more than 3 levels of component hierarchy and into more than 2 or 3 places - in this case consider introducing state management mechanism in this order:
         - Use context providers if we have no other context provider already overlapping with the components we want to share state for
-        - Use a Zustang library store, refactoring away from using any existing context providers overlapping with the components we want to share state with
+        - Use a client store, refactoring away from using any existing context providers overlapping with the components we want to share state with
     - document clearly any global dependencies on these states to prevent problems when reusing this code elsewhere
 - Prefer one-job functions (see code-craft).

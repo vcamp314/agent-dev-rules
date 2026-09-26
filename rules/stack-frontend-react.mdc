@@ -1,0 +1,19 @@
+---
+description: library picks for React/Vite frontends — not layout or craft
+alwaysApply: false
+---
+# Stack: frontend React
+
+Package choices only. Layout, seams, and craft live in `frontend-core` / `frontend-testing` / `code-craft`. Attach this file with the React preset. Do not load it on backend-only projects.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| Bundler / app shell | Vite | |
+| UI | React | |
+| Styling | Tailwind | Utility-first; do not add a second CSS framework |
+| Lint / format (greenfield) | Biome | One toolchain. Keep eslint (+ Prettier) only if the repo already uses it — do not run both |
+| Unit tests | Vitest + React Testing Library | Jest + RTL only for non-Vite or legacy Jest apps |
+| E2E / L1 | Playwright | See `frontend-testing` |
+| Client router | Whatever the app already has (React Router or TanStack Router) | Do not invent a second URL state store |
+
+Remote-state and schema libraries: `stack-frontend-http.mdc` when the app calls an HTTP API. WASM toolchain: `stack-frontend-wasm.mdc`.

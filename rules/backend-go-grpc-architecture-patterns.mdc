@@ -4,7 +4,7 @@ alwaysApply: false
 ---
   You are an expert in Go, gRPC, and scalable microservice development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
 
-  Pair with: code-craft, go-core, backend-usecases (when cross-domain orchestration applies), and monorepo rules for `protobuf/` + `backend/lib/gen/pb`. HTTP audience URL versioning (http-api-contract) does **not** apply — version gRPC via protobuf packages. Include `testing` when writing automated tests.
+  Pair with: code-craft, go-core, `stack-go-grpc` (library picks), backend-usecases (when cross-domain orchestration applies), and monorepo rules for `protobuf/` + `backend/lib/gen/pb`. HTTP audience URL versioning (http-api-contract) does **not** apply — version gRPC via protobuf packages. Include `testing` when writing automated tests.
 
 ### Key Principles
   - Write concise, technical Go code (see also code-craft and go-core).
@@ -136,20 +136,15 @@ return status.Errorf(codes.NotFound, "room not found")
 ### Dependencies
 
   Staples (expected for most gRPC services):
-  - Language / lint / tests / IDs / SQL driver+sqlc preferences: see go-core
-  - gRPC: `google.golang.org/grpc`
-  - Protobuf runtime: `google.golang.org/protobuf`
+  - Library picks: see `stack-go-grpc`.
   - Generated API: shared module under `backend/lib/gen/pb` (from monorepo `protobuf/`)
   - Config: env via `internal/environment` by default
-
-  When the service uses SQL (optional per service, but staples once SQL exists):
-  - Migrations: golang-migrate
 
   Optional / service-specific (add only when needed):
   - Messaging: NATS (`nats.go`; embedded `nats-server` for local/dev or tests) — used by chat-style fan-out, not required for every gRPC service
   - Browser clients: `improbable-eng/grpc-web` (or successor) when browsers must speak to the service without a separate gateway
   - Auth: JWT / Cognito / similar interceptors only if the service needs identity
-  - Observability: OpenTelemetry when operational needs justify it. Logging: `log/slog` (see go-core); zerolog only if slog is insufficient or the service already uses it
+  - Observability: OpenTelemetry when operational needs justify it
   - Mocks: uber-go/mock when interface mocking helps
   - Local reload: air
   - Task runner: Just (only if the service already uses it)
@@ -179,14 +174,14 @@ return status.Errorf(codes.NotFound, "room not found")
 
 ### Database and Migrations
   - Only when the gRPC service needs SQL persistence.
-  - Same conventions as HTTP Go services: `internal/database/{migrations,queries,sqlc}`, golang-migrate, sqlc generate after schema changes.
+  - Same conventions as HTTP Go services: `internal/database/{migrations,queries,sqlc}`; migrator and query codegen: see `stack-go-grpc` (examples: golang-migrate, sqlc — confirm there). Regenerate after schema changes.
   - Migration naming: `create_<domain>_table`, `alter_<table>_<description>`.
   - Running migrate via compose image or CLI is fine; `cmd/migrator` is optional.
 
 ### DI, Mocks, and Testing
   - Default wiring: construct integrations → services → endpoint servers in `cmd/server` or `internal/server` with plain constructors.
   - Do not add Google Wire. If the service already has generated Wire output, do not hand-edit it.
-  - Follow `testing.mdc` for what to test at each level. Tooling: see go-core (testify; bufconn / in-process gRPC for L2).
+  - Follow `testing.mdc` for what to test at each level. Tooling: see `stack-go-grpc` (examples: testify, bufconn — confirm there).
   - Unit-test single-job helpers (`*_test.go` colocated); cover orchestrators and RPC contracts via L2 (`testing/integration_tests/` + `test_utils/` when useful) or E2E.
   - Prefer injectable integrations so L2 can swap fakes/embedded servers. Avoid brittle `time.Sleep`-based synchronization when wait/signal patterns are practical.
   - `cmd/client` is for manual exploration; automated coverage belongs in tests.

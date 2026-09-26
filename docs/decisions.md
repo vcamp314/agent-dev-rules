@@ -220,3 +220,17 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
 - **Alternatives rejected:** **eslint + Prettier as the greenfield default** — two tools, and Biome matches the Vitest decision (one toolchain that fits Vite).
 - **Consequences:** `frontend-core` and `ci-github` agree. Library-default churn beyond this stays out of these rules until the dependency-rules pass.
 - **Revisit if:** Biome cannot express a lint rule the team must have on every Vite app.
+
+---
+
+### Centralize library picks in stack-selection rules
+
+- **Context:** Package names were mixed into architecture and craft rules, so updating a default (CVE, deprecation, better replacement) meant hunting many files and stacks drifted.
+- **Chosen:** Dedicated `stack-*.mdc` files (concern → library → notes). Presets install only the stack file that matches the project shape. Architecture/craft rules keep layout and seams. When a procedure needs a concrete name so an agent is not guessing, use **`example: <lib> — confirm in stack-…`**. The stack file is the source of truth; examples must not be treated as a second mandate.
+- **Alternatives rejected:**
+  - **Keep names in every pattern file** — cheap to write once, expensive to evolve.
+  - **One mega catalog for all stacks** — loads the wrong stack into every project.
+  - **Fully stack-agnostic wording in procedures** — “the stack SQL library” / “JS glue” left agents inventing Diesel, wasm-bindgen-in-the-engine-crate, or two linters.
+- **Consequences:** Changing a default is one PR to one stack file, plus any leftover *examples* if they would now mislead. `architecture-linter` checks the diff against installed `stack-*.mdc` (duplicate same-concern deps, invented replacements, treating architecture examples as a second mandate) so wording in architecture/core does not have to be perfect before this ships. Dependabot-like CI against a machine-readable catalog is a later follow-up (see issue #6).
+- **Revisit if:** A catalog/CI job should generate these Markdown tables; or stack-pick mistakes are common enough to warrant a sixth critic instead of this checklist item.
+

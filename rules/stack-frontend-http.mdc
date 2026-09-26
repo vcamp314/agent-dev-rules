@@ -1,0 +1,12 @@
+---
+description: library picks for frontend HTTP API clients — not layout or craft
+alwaysApply: false
+---
+# Stack: frontend HTTP client
+
+Package choices only. Client/hook layout and toast UX live in `frontend-http-api`. Attach with `frontend-http-api`.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| Remote server state | TanStack Query (react-query) | Invalidate on relevant mutations; avoid ad-hoc fetch caches |
+| External data schemas | valibot | Schemas in `types/`; parse `unknown` at the boundary |

@@ -119,7 +119,7 @@ code-craft          ← language-agnostic craft (always useful)
 | Shared craft | `code-craft`, `go-core`, `rust-core` | How to write code (incl. typing + composition) — not folder trees |
 | Shared contracts | `http-api-contract`, `backend-usecases`, `testing`, `ci-github` | HTTP paths/IDs; usecases; what/how to test; when CI runs |
 | Repo layout | `monorepo-architecture` | Top-level `frontend/`, `backend/`, `protobuf/`, compose, test env |
-| Frontend | `frontend-core`, `frontend-http-api`, `frontend-protobuf-gen`, `frontend-rust-wasm`, `frontend-testing` | React layout + optional API / protobuf / WASM / Playwright+Vitest |
+| Frontend | `frontend-core`, `frontend-http-api`, `frontend-protobuf-gen`, `frontend-rust-wasm`, `frontend-testing` | React layout + optional API / protobuf / WASM / tests |
 | Backend stacks | `backend-go-http-…`, `backend-go-grpc-…`, `backend-python-fastapi-…`, `backend-rust-http-…`, `backend-rust-grpc-…` | In-service folder layout + framework choices |
 | Workflow | `bootstrap-select-rules`, `feature-workflow`, `documentation`, `multi-critic-protocol` | Greenfield install + feature delivery + docs + critics |
 
@@ -143,10 +143,10 @@ Only include modules relevant to the work in progress so context stays small and
 
 | Always | Add when… |
 |--------|-----------|
-| `code-craft`, `frontend-core`, `testing`, `frontend-testing` | — |
-| + `http-api-contract`, `frontend-http-api` | App calls an HTTP API |
+| `code-craft`, `frontend-core`, `stack-frontend-react`, `testing`, `frontend-testing` | — |
+| + `http-api-contract`, `frontend-http-api`, `stack-frontend-http` | App calls an HTTP API |
 | + `frontend-protobuf-gen` | App uses generated protobuf/TS clients |
-| + `rust-core`, `frontend-rust-wasm` | App has `crates/` + WASM engines |
+| + `rust-core`, `frontend-rust-wasm`, `stack-frontend-wasm` | App has `crates/` + WASM engines |
 | + `ci-github` | Adding GitHub Actions / CI |
 
 Also install for Cursor workflow projects: `feature-workflow`, `documentation`, `multi-critic-protocol`.
@@ -155,11 +155,11 @@ Also install for Cursor workflow projects: `feature-workflow`, `documentation`, 
 
 Pick one stack. Always include `code-craft` + `http-api-contract` + `testing`. Add `ci-github` when adding Actions.
 
-**Go (Echo):** `code-craft`, `go-core`, `http-api-contract`, `backend-go-http-architecture-patterns`, `testing`
+**Go (Echo):** `code-craft`, `go-core`, `http-api-contract`, `backend-go-http-architecture-patterns`, `stack-go-http`, `testing`
 
-**Python (FastAPI):** `code-craft`, `http-api-contract`, `backend-python-fastapi-architecture-patterns`, `testing`
+**Python (FastAPI):** `code-craft`, `http-api-contract`, `backend-python-fastapi-architecture-patterns`, `stack-python-fastapi`, `testing`
 
-**Rust (Axum):** `code-craft`, `rust-core`, `http-api-contract`, `backend-rust-http-architecture-patterns`, `testing`
+**Rust (Axum):** `code-craft`, `rust-core`, `http-api-contract`, `backend-rust-http-architecture-patterns`, `stack-rust-http`, `testing`
 
 Add `backend-usecases` only for rare cross-domain orchestration APIs.
 
@@ -167,9 +167,9 @@ Add `backend-usecases` only for rare cross-domain orchestration APIs.
 
 Do **not** include `http-api-contract`. Always include `testing`. Add `ci-github` as needed.
 
-**Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`, `testing`
+**Go:** `code-craft`, `go-core`, `backend-go-grpc-architecture-patterns`, `stack-go-grpc`, `testing`
 
-**Rust (Tonic):** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`, `testing`
+**Rust (Tonic):** `code-craft`, `rust-core`, `backend-rust-grpc-architecture-patterns`, `stack-rust-grpc`, `testing`
 
 ### 4. Full monorepo (frontend + backends)
 
@@ -191,16 +191,24 @@ Then add per surface you actually have (React / Go HTTP / Go gRPC / Python / Rus
 | `ci-github.mdc` | GitHub Flow + Actions |
 | `backend-usecases.mdc` | Rare cross-feature orchestration modules |
 | `monorepo-architecture.mdc` | Repo has both `frontend/` and `backend/` |
-| `frontend-core.mdc` | React / Vite / Tailwind app structure |
-| `frontend-http-api.mdc` | Frontend HTTP client + react-query / toasts |
+| `frontend-core.mdc` | React app structure (layout / craft) |
+| `stack-frontend-react.mdc` | React frontend library picks |
+| `frontend-http-api.mdc` | Frontend HTTP client + toasts |
+| `stack-frontend-http.mdc` | Frontend HTTP-client library picks |
 | `frontend-protobuf-gen.mdc` | Frontend consumes generated protobuf/TS |
-| `frontend-rust-wasm.mdc` | Frontend `crates/` + wasm-bindgen bridge |
-| `frontend-testing.mdc` | Playwright E2E/L1 + Vitest/RTL unit tests (Jest only if not Vite) |
-| `backend-go-http-architecture-patterns.mdc` | Go Echo HTTP service layout |
+| `frontend-rust-wasm.mdc` | Frontend `crates/` + WASM bridge layout |
+| `stack-frontend-wasm.mdc` | Frontend WASM library picks |
+| `frontend-testing.mdc` | Frontend E2E/L1 + unit-test layout |
+| `backend-go-http-architecture-patterns.mdc` | Go HTTP service layout |
+| `stack-go-http.mdc` | Go HTTP library picks |
 | `backend-go-grpc-architecture-patterns.mdc` | Go gRPC service layout |
+| `stack-go-grpc.mdc` | Go gRPC library picks |
 | `backend-python-fastapi-architecture-patterns.mdc` | Python FastAPI service layout |
-| `backend-rust-http-architecture-patterns.mdc` | Rust Axum HTTP service layout |
-| `backend-rust-grpc-architecture-patterns.mdc` | Rust Tonic gRPC service layout |
+| `stack-python-fastapi.mdc` | Python FastAPI library picks |
+| `backend-rust-http-architecture-patterns.mdc` | Rust HTTP service layout |
+| `stack-rust-http.mdc` | Rust HTTP library picks |
+| `backend-rust-grpc-architecture-patterns.mdc` | Rust gRPC service layout |
+| `stack-rust-grpc.mdc` | Rust gRPC library picks |
 | `bootstrap-select-rules.mdc` | Greenfield / preset selection (global User Rule) |
 | `documentation.mdc` | README + colocated/`docs/` placement; design decisions; keep docs in sync |
 | `feature-workflow.mdc` | Developer feature/fix protocol; runs only for `/feature-start` |
@@ -224,7 +232,8 @@ See [docs/architecture.md](docs/architecture.md) and [docs/decisions.md](docs/de
 Short reminders:
 
 - **Split by include boundary**, not by dumping conditionals into one mega-file.
-- **Trees live in stack files**; language craft lives in `*-core` / `code-craft`.
+- **Folder trees live in architecture-patterns / layout sections**; **library picks live in `stack-*.mdc`**. Language craft lives in `*-core` / `code-craft`.
+- Architecture may cite a library as `example: <lib> — confirm in stack-…`. Confirm the pick in the stack file; do not treat the example as a second mandate.
 - Placeholders like `aserver` / `bserver` are examples — rename to your domain.
 - Rules prefer reusable conventions (uuid7, `/<audience>/v1/...`, feature modules). They are not product-specific.
 
@@ -235,5 +244,5 @@ Keep new rules:
 1. Focused (one include reason per file when practical).
 2. Free of private product/service names.
 3. Consistent with existing `features` / `services` / `integrations` vocabulary where they apply.
-4. Tool-agnostic body text in architecture rules (Cursor install lives in this README + workflow files).
+4. Library picks belong in `stack-*.mdc`. Architecture/craft may use labelled examples (`example: <lib> — confirm in stack-…`). Cursor install lives in this README + workflow files (not in architecture bodies).
 5. Update [docs/decisions.md](docs/decisions.md) (or a linked topic file) when changing workflow/architecture choices.
