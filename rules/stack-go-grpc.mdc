@@ -1,0 +1,20 @@
+---
+description: library picks for Go gRPC services — not folder layout or craft
+alwaysApply: false
+---
+# Stack: Go gRPC
+
+Package choices only. Trees and protobuf *placement* live in `go-core` / `backend-go-grpc-architecture-patterns` / `monorepo-architecture`. Attach with the Go gRPC preset.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| gRPC | google.golang.org/grpc | Generated APIs from monorepo `protobuf/` |
+| Protobuf runtime | google.golang.org/protobuf | Do not hand-edit `*.pb.go` |
+| Proto lint/generate | buf | `buf lint` / `buf generate`; optional `buf breaking` in CI |
+| L2 tests | bufconn or in-process server | Assert status codes and contracts |
+| SQL driver | pgx/v5 via `database/sql` | When SQL is used; see also `stack-go-http` SQL rows |
+| SQL codegen | sqlc | Do not hand-edit generated output |
+| Migrations | golang-migrate | When SQL is used |
+| Tests | testify | |
+| Lint | golangci-lint | When set up |
+| Logging | `log/slog` | No Wire / zerolog on new services |

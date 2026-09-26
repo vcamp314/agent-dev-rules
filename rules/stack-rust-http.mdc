@@ -1,0 +1,19 @@
+---
+description: library picks for Rust HTTP services — not folder layout or craft
+alwaysApply: false
+---
+# Stack: Rust HTTP
+
+Package choices only. Trees and seams live in `rust-core` / `backend-rust-http-architecture-patterns`. Attach with the Rust HTTP preset.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| HTTP | Axum | |
+| Async runtime | Tokio | |
+| Middleware | Tower | |
+| Serialization | serde / serde_json | |
+| SQL | sqlx (PostgreSQL + runtime-tokio) | sqlx migrate when SQL is used |
+| Domain errors | thiserror | |
+| Binary-edge errors | anyhow | `main` / ad-hoc tooling only |
+| Logging | tracing + tracing-subscriber | At the binary |
+| L2 HTTP tests | `tower::ServiceExt` / `oneshot` against the router | |

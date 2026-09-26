@@ -4,7 +4,7 @@ alwaysApply: false
 ---
   You are an expert in Rust, gRPC (Tonic), and scalable microservice development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
 
-  Pair with: code-craft, rust-core, backend-usecases (when cross-domain orchestration applies), and monorepo rules for `protobuf/` + `backend/lib/gen/pb`. HTTP audience URL versioning (http-api-contract) does **not** apply — version gRPC via protobuf packages. Include `testing` when writing automated tests.
+  Pair with: code-craft, rust-core, `stack-rust-grpc` (library picks), backend-usecases (when cross-domain orchestration applies), and monorepo rules for `protobuf/` + `backend/lib/gen/pb`. HTTP audience URL versioning (http-api-contract) does **not** apply — version gRPC via protobuf packages. Include `testing` when writing automated tests.
 
 ### Key Principles
   - Write concise, technical Rust code (see also code-craft and rust-core).
@@ -31,7 +31,7 @@ alwaysApply: false
 ### Rust/gRPC (Tonic)
   - Keep endpoints thin and push use-case logic into feature/shared services.
   - Use `rustfmt` and `clippy` when those tools are set up for the service.
-  - Prefer sqlx for PostgreSQL when SQL is needed.
+  - Prefer the stack SQL library for PostgreSQL when SQL is needed (example: sqlx — confirm in `stack-rust-grpc`).
   - Prefer UUID v7 for IDs (see code-craft).
   - Time: `chrono` or `time` — pick one per service and stay consistent.
   - File structure (feature module approach):
@@ -41,7 +41,7 @@ grpcserver/                          # e.g. backend/bserver (or domain name such
 ├── Cargo.toml
 ├── Dockerfile                       # Production build (prefer multi-stage)
 ├── .env.example                     # Optional but recommended
-├── migrations/                      # Optional: sqlx migrate when SQL used — or under src/database/migrations/
+├── migrations/                      # Optional: migrate when SQL used — or under src/database/migrations/
 ├── docs/                            # Optional: service docs
 ├── tests/                           # Optional: integration / heavier tests
 ├── src/
@@ -64,7 +64,7 @@ grpcserver/                          # e.g. backend/bserver (or domain name such
 │   ├── database/                    # Optional: SQL infra (only if DB used)
 │   │   ├── mod.rs                   # Pool setup
 │   │   ├── migrations/              # If not at service root
-│   │   └── queries/                 # sqlx query modules / query files
+│   │   └── queries/                 # SQL query modules / query files (example: sqlx — confirm in stack-rust-grpc)
 │   ├── integrations/                # External-system adapters (only when needed)
 │   │   └── <name>/                  # e.g. network/ (NATS), llm/, cognito/
 │   │       ├── mod.rs
@@ -82,19 +82,19 @@ grpcserver/                          # e.g. backend/bserver (or domain name such
 │   ├── features/
 │   │   └── <feature>/               # PRIMARY unit of organization
 │   │       ├── mod.rs
-│   │       ├── endpoints.rs         # tonic service impl
+│   │       ├── endpoints.rs         # gRPC service impl
 │   │       ├── service.rs           # Feature-owned logic; orchestrates repos/integrations/services
 │   │       ├── service_test.rs      # Optional
 │   │       ├── endpoints_test.rs    # Optional: unit tests for endpoint mapping
 │   │       ├── repository.rs        # Optional: only if persistence is needed
-│   │       ├── error.rs             # Domain / feature-level errors (thiserror)
+│   │       ├── error.rs             # Domain / feature-level errors
 │   │       ├── config.rs            # Feature-specific configuration (when needed)
 │   │       ├── dto.rs               # Optional: split out when types grow
 │   │       └── entity.rs            # Optional: split out when types grow
 │   ├── usecases/                    # Optional: rare cross-domain orchestration (see backend-usecases)
 │   │   └── <name>/
 │   │       ├── mod.rs
-│   │       ├── endpoints.rs         # tonic service impl for this product action
+│   │       ├── endpoints.rs         # gRPC service impl for this product action
 │   │       ├── service.rs           # Orchestrates features/services/integrations only
 │   │       ├── error.rs
 │   │       ├── dto.rs               # Optional
@@ -116,7 +116,7 @@ docker-compose.dev.yml               # Optional
     - `server/`: gRPC server construction, interceptors, keepalive, graceful shutdown, registration of feature/usecase servers
     - `environment/`: env-based config loading
     - `client/`: programmatic client used by CLI and tests
-    - `database/`: pool setup, migrations, sqlx (only if SQL)
+    - `database/`: pool setup, migrations, SQL driver (only if SQL; example: sqlx — confirm in `stack-rust-grpc`)
     - `integrations/`: adapters for external systems the service depends on (e.g. NATS)
     - `services/`: shared domain/application logic used by multiple features (no transport)
     - `features/<name>/`: gRPC endpoints, feature-owned services, optional repositories, feature errors/config
@@ -125,7 +125,7 @@ docker-compose.dev.yml               # Optional
     - `monitoring/`, richer `config/`: add when needed, not by default
   - If any file in a feature gets long (> 300 lines), split by clear responsibility within the same module — still prefer flat files over inventing layer folders.
   - DI: manual construction in `main` or `server` is the default — wire integrations, shared `services/`, feature services, and optional usecases into tonic services via `Arc` / owned state. No DI framework by default.
-  - When SQL is needed: prefer sqlx; put pool/migrations/queries under `src/database/` (or migrations at service root).
+  - When SQL is needed: prefer the stack SQL library (example: sqlx — confirm in `stack-rust-grpc`); put pool/migrations/queries under `src/database/` (or migrations at service root).
   - Soft-delete and RLS: only when the domain/tenancy model requires them.
   - Prefer extracting bootstrap out of `main` into `server` once startup logic grows past simple listen/register/serve.
 
@@ -136,7 +136,7 @@ docker-compose.dev.yml               # Optional
 ### Naming Conventions
   - Service / repository type names: rely on module context (`Service` in module `room`, not `RoomService` — the protobuf type may still be `RoomService`).
   - Method names: idiomatic Rust matching the proto RPC where practical.
-  - Defined errors: `thiserror` enums in `error.rs`.
+  - Defined errors: domain error enums in `error.rs`. Crates: see `stack-rust-grpc` (example: thiserror — confirm there).
   - Conversion helpers: keep them close to the types they convert. Prefer clarity over rigid naming rituals.
 
 ### Error Handling and Validation
@@ -147,7 +147,7 @@ docker-compose.dev.yml               # Optional
     - Avoid unnecessary else; use the if-return pattern instead.
     - Use guard clauses for preconditions and invalid states early.
     - Distinguish context cancellation / deadline from unexpected failures (especially on streams).
-  - Domain errors via `thiserror`; map to `tonic::Status` at the endpoint layer (not deep inside integrations).
+  - Domain errors in `error.rs`; map to gRPC status at the endpoint layer (not deep inside integrations). Status type: see `stack-rust-grpc` (example: `tonic::Status` — confirm there).
   - Common gRPC codes: `Ok`, `InvalidArgument`, `NotFound`, `AlreadyExists`, `PermissionDenied`, `Unauthenticated`, `FailedPrecondition`, `Aborted`, `ResourceExhausted`, `Unavailable`, `Cancelled`, `DeadlineExceeded`, `Internal`.
   - Prefer shared interceptors for panic recovery, request logging, and auth once more than one RPC needs them.
   - Unexpected errors: log and return `Internal` (avoid leaking internals to clients).
@@ -155,19 +155,10 @@ docker-compose.dev.yml               # Optional
 ### Dependencies
 
   Staples (expected for most gRPC services):
-  - Language: Rust (pin edition / toolchain)
-  - gRPC: tonic
-  - Protobuf: prost (+ tonic-build / buf codegen into shared gen)
+  - Library picks: see `stack-rust-grpc`.
   - Generated API: shared package under `backend/lib/gen/pb` (from monorepo `protobuf/`)
-  - Async: Tokio
-  - Errors: thiserror (domain); anyhow at binary edges
-  - Logging: tracing + tracing-subscriber at the binary
   - Lint/format: rustfmt + clippy when set up
   - Config: env via `src/environment` by default
-
-  When the service uses SQL (optional per service, but staples once SQL exists):
-  - sqlx (prefer PostgreSQL + runtime-tokio)
-  - Migrations: sqlx migrate
   - IDs: UUID v7 (see code-craft)
 
   Optional / service-specific (add only when needed):
@@ -178,8 +169,8 @@ docker-compose.dev.yml               # Optional
   - Developer UX: `src/bin/client.rs` + `src/client/` against the live service (strongly recommended for streaming services)
 
 ### gRPC-Specific Guidelines
-  - Keep endpoints as thin adapters: validate/authz → call service → map errors to `tonic::Status`.
-  - Implement the generated tonic service trait in `endpoints.rs`.
+  - Keep endpoints as thin adapters: validate/authz → call service → map errors to gRPC status (example: `tonic::Status` — confirm in `stack-rust-grpc`).
+  - Implement the generated gRPC service trait in `endpoints.rs`.
   - Register services explicitly on the tonic `Server` builder in `server/app.rs`.
   - Use transport credentials appropriately: insecure only for local/dev; TLS (or mesh-provided TLS) outside that.
   - For long-lived streams, configure server/client keepalive deliberately (idle timeouts, ping interval, max connection age for rolling deploys).
@@ -199,13 +190,13 @@ docker-compose.dev.yml               # Optional
 
 ### Database and Migrations
   - Only when the gRPC service needs SQL persistence.
-  - Same conventions as HTTP Rust services: `src/database/{mod.rs,migrations,queries}`, sqlx migrate, update queries after schema changes.
+  - Same conventions as HTTP Rust services: `src/database/{mod.rs,migrations,queries}`; migrator and query updates: see `stack-rust-grpc` (example: sqlx — confirm there).
   - Migration naming: `create_<domain>_table`, `alter_<table>_<description>`.
   - Running migrate via compose image or CLI is fine.
 
 ### DI, Mocks, and Testing
   - Default wiring: construct integrations → services → endpoint servers in `main` or `server` with plain constructors.
-  - Follow `testing.mdc` for what to test at each level. Tooling: see rust-core (`cargo test`; in-process Tonic for L2).
+  - Follow `testing.mdc` for what to test at each level. Tooling: see `stack-rust-grpc` (example: in-process Tonic — confirm there).
   - Unit-test single-job helpers; cover orchestrators and RPC contracts via L2 (`tests/`) or E2E.
   - Prefer injectable integrations so L2 can swap fakes.
   - `src/bin/client.rs` is for manual exploration; automated coverage belongs in tests.
@@ -222,6 +213,6 @@ docker-compose.dev.yml               # Optional
   2. Use manual DI by default. **Collaborator ports required** (static generics); service-as-port situational — see rust-core.
   3. Put SQL under `src/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain RPCs under `usecases/`.
   4. Never hand-edit generated protobuf output.
-  5. Map domain errors to `tonic::Status` at the endpoint boundary; use `thiserror` internally.
+  5. Map domain errors to gRPC status at the endpoint boundary; error crate: see `stack-rust-grpc` (example: thiserror → `tonic::Status` — confirm there).
   6. Handle stream/context cancellation explicitly.
   7. Treat NATS/grpc-web/auth/OTel/SQL and `usecases/` as opt-in — required only when the service’s role needs them.

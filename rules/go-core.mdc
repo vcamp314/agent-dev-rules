@@ -2,23 +2,22 @@
 description: idiomatic Go craft shared by HTTP and gRPC services
 alwaysApply: false
 ---
-Apply these Go craft rules for backend services. Pair with code-craft and the relevant stack rule (backend-go-http or backend-go-grpc). Do not put transport trees or Echo/gRPC specifics here.
+Apply these Go craft rules for backend services. Pair with code-craft and the relevant layout rule (`backend-go-http-architecture-patterns` or `backend-go-grpc-architecture-patterns`) plus its `stack-go-*` file. Do not put transport trees or HTTP/gRPC framework specifics here.
 
 ### Language and tooling
 
 - Prefer clear, idiomatic Go. Pin the Go version in `go.mod` / Dockerfile.
-- Format with `gofmt` / `goimports`; lint with `golangci-lint` when those tools are set up for the service.
-- Log with stdlib `log/slog`. Use zerolog only when slog is insufficient for that service, or the service already uses zerolog.
-- Prefer testify (`require` / `assert`) when adding tests.
+- Format with `gofmt` / `goimports`.
+- Lint, log, and test libraries: see the matching `stack-go-*` file (examples: `golangci-lint`, `log/slog`, testify — confirm there).
 - Time: stdlib `time` is the default; introduce richer time helpers only if the service needs them.
 - Prefer UUID v7 for new persistent entity IDs (see code-craft).
 
 ### Testing
 
 - Follow `testing.mdc` for E2E / L1 / L2 / unit level selection (unit-test leaves, not orchestrators).
-- Unit: testify; colocated `*_test.go` next to the code under test.
-- L2 HTTP: `net/http/httptest` (plus Echo context helpers as needed) for endpoint/handler contracts and edge cases.
-- L2 gRPC: in-process server or bufconn-style tests; assert status codes and response contracts.
+- Unit: colocated `*_test.go` next to the code under test (assertion library example: testify — confirm in the matching `stack-go-*` file).
+- L2 HTTP: in-process handler tests for endpoint/handler contracts and edge cases (example: `net/http/httptest` plus Echo helpers — confirm in `stack-go-http`).
+- L2 gRPC: in-process server tests; assert status codes and response contracts (example: bufconn — confirm in `stack-go-grpc`).
 - L2 workers: invoke job entrypoints with controlled clocks/fakes for notifiers; assert outcomes, not internal call graphs.
 - Fake at integration boundaries for L2; do not unit-test orchestrators by mocking every collaborator.
 
@@ -60,8 +59,8 @@ func (s *Service) Welcome(ctx context.Context, email string) error {
 
 - Prefer concrete struct types for domain models and DTOs. Avoid `any` / empty `interface{}` in new code except at rare true boundaries (e.g. heterogeneous decode) — narrow immediately.
 - Prefer small, purpose-built interfaces over large “god” interfaces or passing `any` through layers.
-- Prefer typed request/response structs (and sqlc-generated row types when SQL is used) over map[string]any-style payloads.
-- Prefer compile-time checks (and golangci-lint) over runtime type assertions; when asserting, use `errors.As` / comma-ok forms and handle failure.
+- Prefer typed request/response structs (and generated SQL row types when SQL is used) over map[string]any-style payloads.
+- Prefer compile-time checks (and the stack linter, example: `golangci-lint` — confirm in `stack-go-*`) over runtime type assertions; when asserting, use `errors.As` / comma-ok forms and handle failure.
 
 ### Naming
 
@@ -87,5 +86,4 @@ return fmt.Errorf("failed to register user: %w", err)
 
 ### SQL (when the service uses a database)
 
-- Prefer pgx/v5 via `database/sql` for new PostgreSQL work (prefer over `lib/pq`).
-- Prefer **sqlc** over hand-written query Go or heavy ORMs; do not hand-edit sqlc output. (Layout lives in the stack rules under `internal/database/`.)
+- Driver, query codegen, and migrate tool: see the matching `stack-go-*` file (examples: pgx/v5, sqlc, golang-migrate — confirm there). Do not hand-edit generated query code. (Layout lives in the architecture rules under `internal/database/`.)

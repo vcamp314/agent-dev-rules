@@ -1,0 +1,18 @@
+---
+description: library picks for Python FastAPI services — not folder layout or craft
+alwaysApply: false
+---
+# Stack: Python FastAPI
+
+Package choices only. Trees and seams live in `backend-python-fastapi-architecture-patterns`. Attach with the FastAPI preset.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| Package / deps | uv | `pyproject` + uv (or `requirements/` if already present) |
+| HTTP | FastAPI | |
+| Schemas | Pydantic v2 | Prefer over raw dicts for request/response |
+| ORM (optional) | SQLAlchemy 2.0 | When ORM features are used |
+| Async DB | asyncpg or aiomysql | Match the database |
+| Tests | pytest | L2 HTTP client: httpx against the app |
+| Lint / format | ruff | |
+| Types | mypy | Prefer in CI when the service is typed |

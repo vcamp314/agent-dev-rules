@@ -26,7 +26,7 @@ This repository is **not** an application monorepo. There is no `frontend/` / `b
 
 | Area | Location | Role |
 |------|----------|------|
-| Stack / craft rules | `rules/*.mdc` | Include by preset; bodies are tool-agnostic where practical |
+| Stack / craft rules | `rules/*.mdc` | Include by preset. Library names live in `stack-*.mdc`; architecture/craft keep trees and seams and may cite **examples** that must be confirmed from the matching stack file. |
 | Greenfield bootstrap | `rules/bootstrap-select-rules.mdc` | Global User Rule; selects preset + scaffold |
 | Feature delivery | `rules/feature-workflow.mdc` | Developer path only, via `/feature-start`: requirements → docs → TDD → critics → review triage → handoff |
 | Documentation protocol | `rules/documentation.mdc` | README + colocated/`docs/` placement; decisions; sync with code |
@@ -47,8 +47,8 @@ code-craft
      ├── ci-github (optional)
      ├── backend-usecases (rare)
      ├── monorepo-architecture (when frontend + backend share a repo)
-     ├── frontend-core (+ optional frontend-*)
-     └── backend-*-architecture-patterns
+     ├── frontend-core (+ stack-frontend-react; optional frontend-* + matching stack-*)
+     └── backend-*-architecture-patterns (+ matching stack-*)
 ```
 
 Workflow overlays (always for Cursor workflow projects): `feature-workflow`, `documentation`, `multi-critic-protocol`, `testing`.

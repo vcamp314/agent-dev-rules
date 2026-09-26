@@ -1,8 +1,8 @@
 ---
-description: frontend Rust WASM engines (Cargo workspace + wasm-bindgen beside React)
+description: frontend Rust WASM engines (Cargo workspace + JS bridge beside React)
 alwaysApply: false
 ---
-Use these rules when a frontend package includes Rust engines compiled to WASM (and optional native CLI pre-generation). Pair with: code-craft, rust-core, and frontend-core. Attach frontend-http-api only if the app also calls HTTP APIs.
+Use these rules when a frontend package includes Rust engines compiled to WASM (and optional native CLI pre-generation). Pair with: code-craft, rust-core, `stack-frontend-wasm`, and frontend-core. Attach frontend-http-api + `stack-frontend-http` only if the app also calls HTTP APIs.
 
 ### Where these paths live
 
@@ -18,19 +18,19 @@ Use these rules when a frontend package includes Rust engines compiled to WASM (
 ├── crates/                          # Cargo workspace — all Rust engine / bridge / CLI code
 │   ├── Cargo.toml                   # [workspace] members = [...]
 │   ├── rust-toolchain.toml          # Optional: pin channel/targets (incl. wasm32)
-│   ├── <engine_crate>/              # e.g. physics_engine — pure Rust, no wasm-bindgen
+│   ├── <engine_crate>/              # e.g. physics_engine — pure Rust, no wasm-bindgen (confirm JS glue crate in stack-frontend-wasm)
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── isostasy.rs          # Example domain modules (name to match domain)
 │   │       ├── torque.rs
-│   │       └── error.rs             # thiserror domain errors
-│   ├── wasm_bridge/                 # Only crate with wasm-bindgen / cdylib
+│   │       └── error.rs             # domain errors (example: thiserror — confirm in stack-frontend-wasm)
+│   ├── wasm_bridge/                 # Only crate with JS glue / cdylib (example: wasm-bindgen — confirm in stack-frontend-wasm)
 │   │   ├── Cargo.toml               # crate-type = ["cdylib", "rlib"]; depends on engine crates
 │   │   └── src/
-│   │       ├── lib.rs               # #[wasm_bindgen] exports only
+│   │       ├── lib.rs               # JS exports only (example: #[wasm_bindgen] — confirm in stack-frontend-wasm)
 │   │       ├── api.rs               # Thin wrappers over engine types/fns
-│   │       └── types.rs             # Optional: JS-facing DTOs / serde-wasm-bindgen
+│   │       └── types.rs             # Optional: JS-facing DTOs (example: serde-wasm-bindgen — confirm in stack-frontend-wasm)
 │   └── <cli_crate>/                 # Optional: e.g. worldgen_cli — native offline pre-gen
 │       ├── Cargo.toml               # depends on engine crates, not wasm_bridge
 │       └── src/
@@ -38,7 +38,7 @@ Use these rules when a frontend package includes Rust engines compiled to WASM (
 ├── src/                             # React features / shared / pages (see frontend-core)
 │   └── shared/
 │       └── gen/
-│           └── wasm/                # wasm-pack / wasm-bindgen output (do not hand-edit)
+│           └── wasm/                # generated WASM/JS/TS (do not hand-edit; example builder: wasm-pack — confirm in stack-frontend-wasm)
 │               ├── <pkg>.js
 │               ├── <pkg>_bg.wasm
 │               └── <pkg>.d.ts       # When TS bindings generated
@@ -56,37 +56,37 @@ Use these rules when a frontend package includes Rust engines compiled to WASM (
 
 ### Crate roles (do not conflate)
 
-- **Pure engine crates** (`<engine_crate>/`): core math/simulation. No `wasm-bindgen`, and no `web-sys` unless truly required. Must be reusable from both the WASM bridge and native CLI.
-- **`wasm_bridge/`**: thin FFI only — `#[wasm-bindgen]` exports, input/output conversion. No large domain logic. Depends on engine crates.
+- **Pure engine crates** (`<engine_crate>/`): core math/simulation. No JS glue crates (example: no wasm-bindgen here — confirm the glue crate in `stack-frontend-wasm`), and no `web-sys` unless truly required. Must be reusable from both the WASM bridge and native CLI.
+- **`wasm_bridge/`**: thin FFI only — JS-exported wrappers, input/output conversion. No large domain logic. Depends on engine crates.
 - **`<cli_crate>/` (optional)**: native binary for offline pre-generation (science models that write assets). Depends on engine crates, **not** on `wasm_bridge`.
 
 ### Boundary and performance
 
-- Prefer a thin JS/TS ↔ Rust surface: numbers, typed arrays / buffers, or small serde-wasm-bindgen DTOs. Avoid chatty fine-grained calls in hot loops.
+- Prefer a thin JS/TS ↔ Rust surface: numbers, typed arrays / buffers, or small DTOs (example: serde-wasm-bindgen — confirm in `stack-frontend-wasm`). Avoid chatty fine-grained calls in hot loops.
 - Keep heavy simulation / generation loops in Rust. React/Three.js owns UI, scene graph, and presentation.
-- For realtime in-app simulation: load artifacts from `src/shared/gen/wasm/` via Vite (or the app bundler); call into `wasm_bridge` APIs from feature hooks/services.
+- For realtime in-app simulation: load artifacts from `src/shared/gen/wasm/` via the app bundler; call into `wasm_bridge` APIs from feature hooks/services.
 - For offline pre-gen: run `<cli_crate>` (or `cargo run -p <cli_crate>`) to write assets the app loads — do not force pre-generation through WASM.
 
 ### Build and generated output
 
-- Prefer `wasm-pack` (or equivalent) building `wasm_bridge` into `src/shared/gen/wasm/`.
+- Build `wasm_bridge` into `src/shared/gen/wasm/` with the toolchain in `stack-frontend-wasm` (example: wasm-pack — confirm there).
 - Never hand-edit files under `src/shared/gen/wasm/`; regenerate after Rust API changes.
 - Generated artifacts policy: either commit wasm/JS/TS bindings **or** generate in CI — pick one per repo and stay consistent (same idea as protobuf gen).
 - Pin the WASM target via `rust-toolchain.toml` or documented toolchain setup when helpful (`wasm32-unknown-unknown`).
 
 ### Rust craft inside crates
 
-- Follow rust-core (`thiserror` in engines, avoid unwrap in library code, rustfmt/clippy).
-- Engine crates may be sync; do not pull Tokio into WASM engines unless required.
-- Document `pub` / `#[wasm_bindgen]` surfaces with rustdoc when they form the JS contract.
+- Follow rust-core and `stack-frontend-wasm` (domain errors in engines, avoid unwrap in library code, rustfmt/clippy).
+- Engine crates may be sync; do not pull the backend async runtime into WASM engines unless required.
+- Document `pub` / JS-exported surfaces with rustdoc when they form the JS contract.
 
 ### Frontend integration
 
 - Most UI/domain React code still lives under `src/features`, `src/shared`, `src/pages` (frontend-core).
 - Prefer a small shared helper or feature service that loads/initializes the WASM module once and exposes typed functions to widgets.
-- `apps/web` stays thin: Vite config, WASM plugin wiring if needed, bootstrap.
+- `apps/web` stays thin: bundler config, WASM plugin wiring if needed, bootstrap.
 
 ### Attach presets
 
-- Frontend-only + WASM: `code-craft`, `frontend-core`, `rust-core`, `frontend-rust-wasm`
-- Also calling HTTP: add `http-api-contract`, `frontend-http-api`
+- Frontend-only + WASM: `code-craft`, `frontend-core`, `stack-frontend-react`, `rust-core`, `frontend-rust-wasm`, `stack-frontend-wasm`
+- Also calling HTTP: add `http-api-contract`, `frontend-http-api`, `stack-frontend-http`

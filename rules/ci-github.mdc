@@ -30,9 +30,9 @@ Keep workflow YAML stack-agnostic: name jobs by concern; `run` steps call the pr
 | `pull_request` | → `main` |
 | `push` | → `main` |
 
-Jobs: lint/format for stacks present, using the project's linter (Biome for new Vite apps; eslint only if the repo already uses it — do not add both; ruff/golangci-lint/clippy/rustfmt as applicable); unit + L2 for **changed** areas (path filters); `buf lint` / breaking when `protobuf/` changes.
+Jobs: lint/format for stacks present, using the project's linter (see the matching `stack-*` file; JS example: Biome — confirm in `stack-frontend-react`; do not add a second JS lint/format toolchain); unit + L2 for **changed** areas (path filters); protobuf lint/breaking when `protobuf/` changes (example: buf — confirm in `stack-go-grpc` / `stack-rust-grpc`).
 
-**`e2e.yml` (slower — Playwright)**
+**`e2e.yml` (slower — E2E runner from the matching stack file; example: Playwright — confirm in `stack-frontend-react`)**
 
 | Event | When |
 |--------|------|
@@ -46,7 +46,7 @@ Optional later (not required scaffolding): `schedule` nightly E2E for monorepos.
 
 - `frontend/**` or `e2e/**` → frontend lint/unit (+ E2E rules above)
 - `backend/<service>/**` → that service’s lint/unit/L2
-- `protobuf/**` → buf (+ regenerate check if the repo generates clients in CI)
+- `protobuf/**` → proto lint/breaking (example: buf — confirm in `stack-go-grpc` / `stack-rust-grpc`; plus regenerate check if the repo generates clients in CI)
 - Root workflow, lockfiles, or shared libs that many packages consume → broader CI
 
 ### Jobs and environments

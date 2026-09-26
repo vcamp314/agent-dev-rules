@@ -2,7 +2,7 @@
 description: frontend protobuf generated clients under shared/gen/pb
 alwaysApply: false
 ---
-Use these rules when the frontend consumes generated protobuf/TypeScript clients. Pair with frontend-core (and monorepo architecture rules when protobuf lives in a monorepo).
+Use these rules when the frontend consumes generated protobuf/TypeScript clients. Pair with frontend-core (and monorepo architecture rules when protobuf lives in a monorepo). Proto generate/lint tool: confirm in `stack-go-grpc` / `stack-rust-grpc` (example: buf).
 
 ### Layout
 
@@ -18,5 +18,5 @@ src/
 ### Rules
 
 - Never hand-edit files under `src/shared/gen/pb/`.
-- Regenerate from the project's protobuf sources (e.g. `buf generate` when using the monorepo `protobuf/` + buf workflow).
+- Regenerate from the project's protobuf sources (example: `buf generate` — confirm in `stack-go-grpc` / `stack-rust-grpc` when using the monorepo `protobuf/` workflow).
 - Prefer a shared gen package consumed by all `apps/*` rather than copying generated clients into each app.

@@ -1,0 +1,19 @@
+---
+description: library picks for Rust gRPC services — not folder layout or craft
+alwaysApply: false
+---
+# Stack: Rust gRPC
+
+Package choices only. Trees and protobuf *placement* live in `rust-core` / `backend-rust-grpc-architecture-patterns` / `monorepo-architecture`. Attach with the Rust gRPC preset.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| gRPC | Tonic | Implement generated service traits in `endpoints.rs` |
+| Protobuf | prost (+ tonic-build / buf codegen) | Shared gen package; do not hand-edit |
+| Proto lint/generate | buf | Same workflow as other protobuf stacks |
+| Async runtime | Tokio | |
+| SQL | sqlx | When SQL is needed |
+| Domain errors | thiserror | Map to `tonic::Status` at the endpoint |
+| Binary-edge errors | anyhow | `main` edges only |
+| Logging | tracing | |
+| L2 tests | in-process Tonic server | Assert `Status` and contracts |

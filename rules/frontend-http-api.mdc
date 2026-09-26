@@ -1,8 +1,8 @@
 ---
-description: frontend HTTP API client patterns (react-query, errors/toasts)
+description: frontend HTTP API client patterns (remote state, errors/toasts)
 alwaysApply: false
 ---
-Use these rules when the frontend talks to an HTTP API (in-repo backend or remote). Pair with frontend-core, code-craft, and http-api-contract.
+Use these rules when the frontend talks to an HTTP API (in-repo backend or remote). Pair with frontend-core, `stack-frontend-http`, code-craft, and http-api-contract.
 
 ### API paths and IDs
 
@@ -11,9 +11,9 @@ Use these rules when the frontend talks to an HTTP API (in-repo backend or remot
 ### Remote state and services
 
 - Frontend `services/` here means API/client modules (hook + repository) — not backend shared-domain `services/`.
-- Use libraries such as (tanstack) react-query to manage remote state and ensure remotely fetched data is properly invalidated on relevant user actions and data is refetched only when necessary (such as after a user updates data)
-- have the hook in the services's hook.ts return the isLoading state and display some loading animation for components that depend on that service's data (default to a grey skeleton scaffold animatd with tailwind's animate-pulse)
-- Use libraries such as valibot for validating external data, defining schemas in the types/ folders
+- Remote-state and schema libraries: see `stack-frontend-http` (examples: TanStack Query; valibot — confirm there). Invalidate remote caches on relevant mutations; refetch only when necessary (such as after a user updates data).
+- have the hook in the services's hook.ts return the isLoading state and display some loading animation for components that depend on that service's data (default to a grey skeleton scaffold with a pulse animation)
+- Define external-data schemas in the types/ folders (example: valibot — confirm in `stack-frontend-http`)
 
 ### Error handling (when a backend is involved)
 

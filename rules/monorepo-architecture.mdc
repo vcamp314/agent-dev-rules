@@ -91,7 +91,7 @@ project-root/
 
 ### Test environments
 
-  - E2E (Playwright — see `testing.mdc` / `frontend-testing`) runs against **real** first-party backends in a dedicated test stack — not mocks of in-repo services.
+  - E2E (see `testing.mdc` / `frontend-testing`; runner: `stack-frontend-react`) runs against **real** first-party backends in a dedicated test stack — not mocks of in-repo services.
   - Use a dedicated test database (or equivalent store), separate from day-to-day developer data. Seed and/or reset per suite or run so mutations stay isolated to the test scope.
   - Document how to bring up the test stack (compose profile, env files, seed command) **and how to run tests locally** (unit/L2/E2E commands) so they are discoverable from the root README (brief on README; details may be in `docs/testing.md` per `documentation.mdc`) — no product-specific ports required in these rules.
   - CI: follow `ci-github` (GitHub Flow + Actions). E2E uses the test environment above; keep L2/unit in `ci.yml` path-filtered jobs as appropriate.
@@ -112,16 +112,16 @@ project-root/
 
   **Frontend-only** (no backend in-repo):
   - Always: `code-craft`, `frontend-core`, `testing`, `frontend-testing`
-  - When calling HTTP APIs: `http-api-contract`, `frontend-http-api`
+  - When calling HTTP APIs: `http-api-contract`, `frontend-http-api`, `stack-frontend-http`
   - When consuming protobuf clients: `frontend-protobuf-gen`
-  - When using Rust WASM engines: `rust-core`, `frontend-rust-wasm`
+  - When using Rust WASM engines: `rust-core`, `frontend-rust-wasm`, `stack-frontend-wasm`
   - When adding GitHub Actions / CI: `ci-github`
 
   **Full monorepo** (this layout):
   - Always: `monorepo-architecture`, `code-craft`, `testing`
-  - Frontend: `frontend-core`, `frontend-testing` (+ `frontend-http-api` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `rust-core` as needed)
-  - HTTP backends: `http-api-contract` + stack rule (`backend-go-http-architecture-patterns` + `go-core`, `backend-python-fastapi-architecture-patterns`, or `backend-rust-http-architecture-patterns` + `rust-core`)
-  - gRPC backends: stack rule (`backend-go-grpc-architecture-patterns` + `go-core`, or `backend-rust-grpc-architecture-patterns` + `rust-core`) — not http-api-contract
+  - Frontend: `frontend-core`, `stack-frontend-react`, `frontend-testing` (+ `frontend-http-api` + `stack-frontend-http` / `frontend-protobuf-gen` / `frontend-rust-wasm` + `stack-frontend-wasm` + `rust-core` as needed)
+  - HTTP backends: `http-api-contract` + layout rule + matching `stack-*` (`backend-go-http-architecture-patterns` + `go-core` + `stack-go-http`, `backend-python-fastapi-architecture-patterns` + `stack-python-fastapi`, or `backend-rust-http-architecture-patterns` + `rust-core` + `stack-rust-http`)
+  - gRPC backends: layout rule + matching `stack-*` (`backend-go-grpc-architecture-patterns` + `go-core` + `stack-go-grpc`, or `backend-rust-grpc-architecture-patterns` + `rust-core` + `stack-rust-grpc`) — not http-api-contract
   - Cross-domain orchestration (rare): `backend-usecases`
   - Monorepo E2E: this file’s test-environment guidance
   - CI / GitHub Actions: `ci-github`

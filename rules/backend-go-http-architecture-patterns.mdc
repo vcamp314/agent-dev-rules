@@ -4,7 +4,7 @@ alwaysApply: false
 ---
   You are an expert in Go, Echo, and scalable HTTP API development. You give thoughtful and nuanced answers that are accurate and factual. You write bug-free, production ready code.
 
-  Pair with: code-craft, go-core, http-api-contract, and backend-usecases (when cross-domain orchestration applies). Include `testing` when writing automated tests.
+  Pair with: code-craft, go-core, `stack-go-http` (library picks), http-api-contract, and backend-usecases (when cross-domain orchestration applies). Include `testing` when writing automated tests.
 
 ### Key Principles
   - Write concise, technical Go code (see also code-craft and go-core).
@@ -27,7 +27,7 @@ alwaysApply: false
 
 ### Go/Echo
   - Prefer clear, small functions; keep handlers thin and push use-case logic into services.
-  - Use typed structs for request/response DTOs; validate with go-playground/validator when validation grows beyond simple checks.
+  - Use typed structs for request/response DTOs; validate with the stack validator when validation grows beyond simple checks (example: go-playground/validator — confirm in `stack-go-http`).
   - Prefer UUID v7 for IDs (see code-craft / http-api-contract / go-core).
   - File structure (feature module approach):
 
@@ -47,9 +47,9 @@ httpserver/                          # e.g. backend/aserver (or domain name such
 │   ├── monitoring/                  # Optional: OTel traces/metrics/error helpers
 │   ├── tools/                       # Optional: migrator helpers
 │   ├── database/                    # SQL infra (only if DB used)
-│   │   ├── migrations/              # golang-migrate up/down SQL (schema source for sqlc)
-│   │   ├── queries/                 # sqlc query definitions (hand-written .sql)
-│   │   └── sqlc/                    # sqlc-generated code (do not hand-edit)
+│   │   ├── migrations/              # migrate up/down SQL (schema source for query codegen)
+│   │   ├── queries/                 # query definitions (hand-written .sql)
+│   │   └── sqlc/                    # generated query code (do not hand-edit)
 │   ├── integrations/                # External-system adapters (only when needed)
 │   │   └── <name>/                  # e.g. llm/, email/, cognito/
 │   │       ├── client.go            # Provider-agnostic interface + wiring
@@ -88,7 +88,7 @@ docker-compose.dev.yml               # Optional: air/hot-reload overrides
 ```
 
   - High-level `internal/` responsibilities:
-    - `server/`: Echo setup, middleware, logging, route groups, startup/shutdown
+    - `server/`: HTTP server setup, middleware, logging, route groups, startup/shutdown
     - `environment/`: env-based config loading (default)
     - `database/`: connection setup, migrations, sqlc queries + generated code
     - `integrations/`: adapters for external systems the service depends on
@@ -99,7 +99,7 @@ docker-compose.dev.yml               # Optional: air/hot-reload overrides
     - `monitoring/`, `tools/`: add when needed, not by default
   - If any file in a feature gets long (> 300 lines), split by clear responsibility within the same package (`dto.go`, `entity.go`, or smaller focused files) — still prefer flat files over inventing layer folders.
   - DI: manual constructors in `server.New` (or equivalent) are the default — construct integrations, shared `services/`, feature services, and optional usecases and pass them into handlers. Do not introduce Google Wire unless this service already uses it. If generated Wire output is already present, do not hand-edit it.
-  - Prefer sqlc (see go-core). Hand-write SQL in `internal/database/queries/`; generate typed Go into `internal/database/sqlc/`. Map sqlc models ↔ domain entities in the repository layer. Do not hand-edit sqlc output.
+  - Prefer the stack SQL codegen (see `stack-go-http`; example: sqlc — confirm there). Hand-write SQL in `internal/database/queries/`; generate typed Go into `internal/database/sqlc/`. Map generated models ↔ domain entities in the repository layer. Do not hand-edit generated query code.
   - Soft-delete (`deleted_at IS NULL`) and RLS-aware helpers: use only when the domain/tenancy model requires them.
   - Register routes from `internal/server` under audience + version groups (http-api-contract). Feature (and usecase) packages own handlers; the server owns top-level group wiring.
 
@@ -121,12 +121,8 @@ docker-compose.dev.yml               # Optional: air/hot-reload overrides
   - Prefer shared validation/timeout middleware once multiple routes need the same behavior.
 
 ### Dependencies
-  - Language / lint / tests / IDs / SQL driver+sqlc preferences: see go-core
-  - HTTP: Echo v4 (`labstack/echo`)
-  - Migrations (when SQL): golang-migrate
-  - Config: env via `internal/environment` by default; Viper + YAML optional for richer multi-env setups
-  - Validation: go-playground/validator when needed
-  - Logging: `log/slog` (see go-core). zerolog only if slog is insufficient or the service already uses it.
+  - Library picks: see `stack-go-http`.
+  - Config: env via `internal/environment` by default; Viper + YAML optional for richer multi-env setups.
   - Optional as needed: OpenTelemetry, swag/Redocly, tbls, uber-go/mock, air, Just, echo-jwt / Cognito (only if the service needs auth)
 
 ### Echo/HTTP-Specific Guidelines
@@ -156,22 +152,22 @@ docker-compose.dev.yml               # Optional: air/hot-reload overrides
   - Auth (JWT/Cognito/etc.) is optional — add only when the service needs identity.
 
 ### Database and Migrations
-  - Use golang-migrate; running via compose migrate image or `migrate` CLI is fine. An in-repo `cmd/migrator` is optional.
+  - Use the stack migrator (example: golang-migrate — confirm in `stack-go-http`); running via compose migrate image or the migrate CLI is fine. An in-repo `cmd/migrator` is optional.
   - A migration file may contain multiple related queries.
   - Naming:
     - Create table: `create_<DOMAIN_NAME>_table` (e.g. `create_user_table`)
     - Alter table: `alter_<TABLE_NAME>_<DESCRIPTION>` (e.g. `alter_user_add_name_column`)
-  - After schema changes: apply migrations, then regenerate sqlc (`sqlc generate` or the service’s task runner equivalent).
+  - After schema changes: apply migrations, then regenerate query code (example: `sqlc generate` — confirm in `stack-go-http`, or the service’s task runner equivalent).
   - Soft-delete patterns (filter `deleted_at IS NULL`) only when the schema uses soft deletes.
-  - Keep sqlc query names and `:one` / `:many` / `:exec` annotations clear; prefer one concern per `.sql` query file grouping when reasonable.
+  - Keep query names and `:one` / `:many` / `:exec` annotations clear; prefer one concern per `.sql` query file grouping when reasonable.
 
 ### DI, Mocks, and Testing
   - Default wiring: construct repos → services → handlers in `internal/server` (or `cmd/server`) with plain constructors.
   - Do not add Google Wire. `go build` already fails when a constructor argument is missing. If the service already has generated Wire output, do not hand-edit it.
-  - Follow `testing.mdc` for what to test at each level. Tooling: see go-core (testify, httptest for L2 HTTP).
+  - Follow `testing.mdc` for what to test at each level. Tooling: see `stack-go-http` (examples: testify, `httptest` — confirm there).
   - Unit-test single-job helpers (`*_test.go` colocated); do not unit-test multi-step service entrypoints with heavy mocks — cover those via L2/E2E.
   - When using mocks/fakes: keep them next to the interface; name `*_mock.go` (or the tool’s equivalent). Fake at integration boundaries for L2.
-  - If the service has a Justfile (or similar), prefer it for migrate / sqlc / lint / test / run; otherwise use the documented go/sqlc/migrate commands. Do not invent a Just workflow solely to satisfy these rules.
+  - If the service has a Justfile (or similar), prefer it for migrate / query-gen / lint / test / run; otherwise use the documented go/migrate/generate commands. Do not invent a Just workflow solely to satisfy these rules.
 
 ### Performance and Observability
   - Minimize blocking I/O; keep DB and external calls context-aware and cancellable.
@@ -183,7 +179,7 @@ docker-compose.dev.yml               # Optional: air/hot-reload overrides
   1. Organize by feature; keep layered responsibilities inside the feature via flat files (`endpoints`, `service`, `repository`, `errors`, `config`).
   2. Use manual DI. Do not introduce Google Wire unless this service already uses it. **Collaborator ports required**; service-as-port situational — see go-core.
   3. Put SQL under `internal/database/`; externals under `integrations/`; shared domain under `services/` (after reuse); dumb helpers under `common/`; optional cross-domain APIs under `usecases/`.
-  4. Do not hand-edit sqlc-generated code (or existing Wire `injector_gen.go` if the service already has it).
+  4. Do not hand-edit generated query code (or existing Wire `injector_gen.go` if the service already has it).
   5. Routes are `/<audience>/v1/...`; health and similar ops routes may be separate.
   6. Follow go-core error wrapping and interface-placement rules; map domain errors to HTTP at the handler boundary.
   7. Treat Cognito/JWT, OTel, Swagger, Just, soft-delete, RLS, and `usecases/` as opt-in — not mandatory scaffolding.

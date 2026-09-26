@@ -1,0 +1,14 @@
+---
+description: library picks for frontend Rust WASM engines — not crate layout
+alwaysApply: false
+---
+# Stack: frontend Rust WASM
+
+Package choices only. `crates/` layout and JS loader seams live in `frontend-rust-wasm` / `rust-core`. Attach with the WASM extra.
+
+| Concern | Choice | Notes / fallback |
+|---------|--------|------------------|
+| JS glue | wasm-bindgen | Only in `wasm_bridge` (cdylib) |
+| Build | wasm-pack (or equivalent) | Output to `src/shared/gen/wasm/` — do not hand-edit |
+| Small DTOs | serde-wasm-bindgen | Prefer numbers / typed arrays in hot loops |
+| Engine errors | thiserror | In the pure engine crate, not the bridge |
