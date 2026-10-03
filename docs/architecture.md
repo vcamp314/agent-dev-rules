@@ -33,8 +33,8 @@ This repository is **not** an application monorepo. There is no `frontend/` / `b
 | Testing strategy | `rules/testing.mdc` | E2E/L1/L2/unit; **day-one** harness + minimal passing test |
 | Multi-critic | `rules/multi-critic-protocol.mdc` + `agents/` | Parallel review after green tests |
 | Daily planning (opt-in) | `rules/daily-planning.mdc` + `rules/backlog-sources.mdc` | Cross-project items → triage into agent/human tasks → agent queue + human list (human-day budget, reserving induced reviews); private remote plan store |
-| Slash commands | `commands/` | `/new-project`, `/feature-start`, `/commit-push`, `/sync-rules`, `/standardize-pr`, `/setup-business`, `/submit`, `/init-planning`, `/plan-day`, `/start-day` |
-| Business idea lane | `rules/business-team-experiments.mdc` via `/setup-business` | Local always-on rule in one clone, never committed. That machine's commands are `/submit` and `/feature-start` only |
+| Slash commands | `commands/` | `/new-project`, `/feature-start`, `/commit-push`, `/sync-rules`, `/standardize-pr`, `/setup-vibe`, `/submit`, `/init-planning`, `/plan-day`, `/start-day` |
+| Vibe lane | `rules/business-team-experiments.mdc` via `/setup-vibe` | Local always-on rule in one clone, never committed. That machine's commands are `/submit` and `/feature-start` only |
 
 ### Include graph (conceptual)
 

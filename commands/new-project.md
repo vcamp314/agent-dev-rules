@@ -5,7 +5,7 @@ Follow the project bootstrap protocol in [agent-dev-rules](https://github.com/vc
 ## Do this
 
 1. If architecture is not yet agreed, stay in / switch to **Plan mode**: ask the decision-tree questions (frontend-only vs monorepo vs single service; stacks; WASM/HTTP/protobuf; CI). Capture rejected alternatives as you go (they become `docs/` decision records). **Testing is always on** for greenfield (harness + minimal passing test); only CI remains optional in the tree.
-2. Emit the exact `.mdc` file list to install, always including `feature-workflow.mdc`, `multi-critic-protocol.mdc`, `documentation.mdc`, and `testing.mdc` (+ `frontend-testing.mdc` when React is present). Do **not** install `business-team-experiments.mdc`. That file is copied only by `/setup-business`.
+2. Emit the exact `.mdc` file list to install, always including `feature-workflow.mdc`, `multi-critic-protocol.mdc`, `documentation.mdc`, and `testing.mdc` (+ `frontend-testing.mdc` when React is present). Do **not** install `business-team-experiments.mdc`. That file is copied only by `/setup-vibe`.
 3. After the user approves the plan, in **Agent mode**: fetch those files from `https://github.com/vcamp314/agent-dev-rules` into `.cursor/rules/`.
 4. Scaffold a blank runnable app from the stack rules; init git/`main` if needed; stack `.gitignore`.
 5. **Testing (required from day one)** — per `testing.mdc`: wire the stack’s test runner and add **at least one minimal passing test**; run it once and confirm green; document the exact command on the root README.

@@ -1,6 +1,6 @@
-# Setup business
+# Setup vibe
 
-Run **once on the business person's machine**. The text after this command is a GitHub repository URL. This command is not part of `/new-project` or bootstrap.
+Run **once on a machine that should vibe**: try ideas in a repo without the developer pauses. The text after this command is a GitHub repository URL. This command is not part of `/new-project` or bootstrap.
 
 Do not run it on a developer machine unless the user explicitly says to replace that machine's commands.
 

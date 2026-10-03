@@ -1,6 +1,6 @@
 # Submit
 
-The only way a business contributor commits, pushes, and asks a developer to review. Developer machines use `/commit-push` instead. This command refuses `main`.
+The only way a vibe machine commits, pushes, and asks a developer to review. Developer machines use `/commit-push` instead. This command refuses `main`.
 
 ## Branch
 

@@ -74,7 +74,7 @@ Only after tests are green. Follow `multi-critic-protocol.mdc`. Pass the origina
 Summarize for user **manual QA** (what to click/run, which commands). List **docs created/updated** (paths). Emit **Review triage** below. Do **not** commit or push yet.
 
 - Developer machine: wait for `/commit-push` (perfect-commit path: implementation + tests + docs + GitHub issue link; user may `/commit-push --simple` for trivial work). The pull-request body should carry the same triage sections.
-- Business machine (`business-team-experiments.mdc` installed): tell the user to run `/submit`. Do not mention `/commit-push`. Do not push `main`.
+- Vibe machine (`business-team-experiments.mdc` installed): tell the user to run `/submit`. Do not mention `/commit-push`. Do not push `main`.
 
 ### Review triage
 

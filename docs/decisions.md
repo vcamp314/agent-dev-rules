@@ -179,12 +179,12 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
 
 ---
 
-### Business idea lane vs developer ceremony
+### Vibe lane vs developer ceremony
 
-- **Context:** Some products have business contributors who should try ideas without the developer pauses, while engineers keep `/feature-start`. The same craft rules should apply. An idea must not land on `main` before an engineer raises it to that bar. An earlier cut used `/business-iterate` and `/business-finalize` as opt-in commands and told engineers to re-run `/feature-start` to promote.
+- **Context:** Some products have business contributors who should try ideas without the developer pauses, while engineers keep `/feature-start`. The same craft rules should apply. An idea must not land on `main` before an engineer raises it to that bar. An earlier cut used `/business-iterate` and `/business-finalize` as opt-in commands and told engineers to re-run `/feature-start` to promote. The setup command was first named `/setup-business`.
 - **Chosen:**
   - `feature-workflow` runs only when `/feature-start` is invoked. A plain prompt does not enter it.
-  - `business-team-experiments.mdc` is not a preset. `/setup-business <repo-url>` copies it into one clone with `alwaysApply: true`, lists it in `.git/info/exclude`, and does not commit it. That machine's commands are `/submit` and `/feature-start` only.
+  - `business-team-experiments.mdc` is not a preset. `/setup-vibe <repo-url>` copies it into one clone with `alwaysApply: true`, lists it in `.git/info/exclude`, and does not commit it. That machine's commands are `/submit` and `/feature-start` only.
   - A plain prompt on that machine stays on `feature/business-ideas/<topic>` in the same folders as `main`, runs tests, records failures, and does not commit.
   - `/submit` writes idea-stage assumptions, runs the five critics once without fixing, and opens the pull request even when tests are red. It refuses `main`. It never stages the always-on rule file.
   - `/feature-start` on that machine still runs the full ceremony, then the handoff points at `/submit` instead of `/commit-push`.
@@ -192,11 +192,11 @@ Inspired in part by Simon Willison’s *The Perfect Commit* (implementation + te
   - Developer install copies every command except `submit`. `ci-github` stays GitHub Flow. Protecting `main` on the product repo is an admin step, not part of setup.
 - **Alternatives rejected:**
   - **Commit the rule with `alwaysApply: false`, then gitignore it** — a committed file stays tracked; a local flip to `alwaysApply: true` can merge and turn the lane on for every developer.
-  - **Delete developer workflow rules on the business clone** — stack rules must stay so the agent still follows the real layout; `skip-worktree` deletions are easy to commit by mistake.
-  - **`/commit-push` on the business machine** — two finish commands. `/submit` is the only one.
+  - **Delete developer workflow rules on the vibe clone** — stack rules must stay so the agent still follows the real layout; `skip-worktree` deletions are easy to commit by mistake.
+  - **`/commit-push` on the vibe machine** — two finish commands. `/submit` is the only one.
   - **Re-run `/feature-start` to receive a business pull request** — the diff already exists. `/standardize-pr` raises that diff.
   - **Always-on rule inside the developer preset** — personal projects and engineers would be forced onto idea branches.
-- **Consequences:** Business iteration is a plain prompt. Engineers meet the result as a pull request. Red tests and unfixed critic blockers are that pull request's Must review until `/standardize-pr` runs.
+- **Consequences:** On a vibe machine, iteration is a plain prompt. Engineers meet the result as a pull request. Red tests and unfixed critic blockers are that pull request's Must review until `/standardize-pr` runs.
 - **Revisit if:** Business accounts must not have write access to the product repo (use a fork and point `/submit` at it); or `/standardize-pr` should refuse product-choice blockers instead of stopping to ask.
 
 ---

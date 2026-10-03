@@ -1,10 +1,10 @@
 ---
-description: business idea lane — always on after /setup-business; plain prompts stay off main, /feature-start still runs the developer ceremony
+description: vibe lane — always on after /setup-vibe; plain prompts stay off main, /feature-start still runs the developer ceremony
 alwaysApply: true
 ---
-# Business team experiments
+# Vibe lane
 
-Installed only by `/setup-business` into this clone. Not part of any developer preset. Do not commit this file. Do not stage `.cursor/rules/business-team-experiments.mdc`.
+Installed only by `/setup-vibe` into this clone. Not part of any developer preset. Do not commit this file. Do not stage `.cursor/rules/business-team-experiments.mdc`.
 
 Architecture, craft, and testing rules in this project's `.cursor/rules/` still apply. This file decides the lane.
 
